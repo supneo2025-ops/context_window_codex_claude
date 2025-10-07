@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Context Window Usage - rollout-2025-10-05T19-05-10-0199b442-f18e-72d2-b4de-e4f7f21fea35</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <style>
+    :root {
+      --bg1: #0e1b4d;
+      --bg2: #6b2bbf;
+      --bg3: #a21caf;
+      --card: rgba(20,24,45,0.9);
+      --card-hover: rgba(30,34,55,0.95);
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #60a5fa;
+      --shadow: 0 6px 18px rgba(0,0,0,0.35);
+      --border: rgba(156,163,175,0.2);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 20px 20px 20px 20px;
+      font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;
+      color: var(--text);
+      background: linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 60%, var(--bg3) 100%);
+      height: 100vh;
+      overflow: hidden;
+    }
+    .container { max-width: 1800px; margin: 0 auto; }
+    .header { text-align: center; margin-bottom: 20px; position: relative; }
+    .header h1 { margin: 0 0 8px; font-size: 28px; font-weight: 700; }
+    .header p { margin: 0; color: var(--muted); font-size: 14px; }
+    .chart-title .cost-suffix {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 400;
+      margin-left: 8px;
+    }
+
+    .toggle-container {
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .toggle-label {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 56px;
+      height: 28px;
+      background: rgba(30,34,55,0.7);
+      border-radius: 14px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .toggle-switch.active {
+      background: var(--card);
+    }
+
+    .toggle-slider {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 22px;
+      height: 22px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    .toggle-switch.active .toggle-slider {
+      transform: translateX(28px);
+    }
+
+    .toggle-icon {
+      color: #4b5563;
+      font-weight: bold;
+      font-size: 12px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(91px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: var(--shadow);
+    }
+    .stat-title { font-size: 10px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 4px; }
+    .stat-value { font-size: 20px; font-weight: 700; color: var(--accent); }
+
+    .main-layout {
+      display: grid;
+      grid-template-columns: 3fr 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .charts-container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      height: calc(100vh - 210px);
+    }
+
+    .chart-section {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(6px);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chart-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      margin: 0 0 15px 0;
+      text-align: center;
+    }
+
+    .chart-wrap { position: relative; flex: 1; }
+
+    .chat-pane {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(6px);
+      height: calc(100vh - 210px);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .chat-pane::-webkit-scrollbar {
+      width: 8px;
+    }
+    .chat-pane::-webkit-scrollbar-track {
+      background: rgba(156,163,175,0.1);
+      border-radius: 4px;
+    }
+    .chat-pane::-webkit-scrollbar-thumb {
+      background: rgba(96,165,250,0.5);
+      border-radius: 4px;
+    }
+    .chat-pane::-webkit-scrollbar-thumb:hover {
+      background: rgba(96,165,250,0.7);
+    }
+
+    .chat-header {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      margin: -20px -20px 12px -20px;
+      padding: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: -20px;
+      background: rgba(20,24,45,1);
+      backdrop-filter: blur(10px);
+      z-index: 10;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .message-card {
+      background: rgba(30,34,55,0.7);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .message-card:hover {
+      background: var(--card-hover);
+      border-color: var(--accent);
+      transform: translateX(-2px);
+      box-shadow: 0 4px 12px rgba(96,165,250,0.2);
+    }
+
+    .message-card.selected {
+      background: var(--card-hover);
+      border: 2px solid #fbbf24;
+      box-shadow: 0 0 20px rgba(251,191,36,0.4), 0 4px 12px rgba(96,165,250,0.3);
+      transform: translateX(-2px);
+    }
+
+    .message-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .message-number {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .message-total {
+      font-size: 11px;
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .message-text {
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+      margin-bottom: 10px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .message-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    .message-context {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .cost {
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .message-time {
+      font-size: 12px;
+      color: var(--accent);
+      font-family: 'Monaco', 'Menlo', monospace;
+    }
+
+    @media (max-width: 1200px) {
+      .main-layout {
+        grid-template-columns: 1fr;
+      }
+      .chat-pane {
+        height: 400px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Context Window Usage Over Time</h1>
+      <p>Session: rollout-2025-10-05T19-05-10-0199b442-f18e-72d2-b4de-e4f7f21fea35 | 2025_10_05</p>
+      <div class="toggle-container">
+        <span class="toggle-label">Message based x-axis</span>
+        <div id="toggleSwitch" class="toggle-switch active" onclick="toggleXAxis()">
+          <div class="toggle-slider">
+            <span class="toggle-icon" id="toggleIcon">✓</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-title">Token Events</div>
+        <div class="stat-value">189</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">User Messages</div>
+        <div class="stat-value">26</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Total Messages</div>
+        <div class="stat-value">771</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Final Context</div>
+        <div class="stat-value">116,050</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Total</div>
+        <div class="stat-value">6,182,554</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Model CW</div>
+        <div class="stat-value">272,000</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Context Usage</div>
+        <div class="stat-value">42.7%</div>
+      </div>
+    </div>
+
+    <div class="main-layout">
+      <div class="charts-container">
+        <div class="chart-section">
+          <h3 class="chart-title" id="contextChartTitle">Context Window Over Time</h3>
+          <div class="chart-wrap">
+            <canvas id="contextChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-section">
+          <h3 class="chart-title" id="cumulativeChartTitle">Cumulative Total Tokens</h3>
+          <div class="chart-wrap">
+            <canvas id="cumulativeChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-pane">
+        <div class="chat-header">👤 User Messages</div>
+
+      <div class="message-card" data-index="26" data-ts-ms="1759653109428" data-msg-index="753" data-date-full="2025_10_05" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #26 <span style="color: var(--accent); font-weight: 400;">(2m 41s Oct 05)</span></div>
+          <div class="message-total">Message #753</div>
+        </div>
+        <div class="message-text">write a code to extract only function arguments json from --input , default to  ~/AgenticProjects/agent-executors/stream_watch/output/codex/sse_lines.jsonl , and dump to an output file or to sdtout, the file could be pipable or with --hours which will choose only the last x hours latest data-points</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 113,253 (5,950,696) | <span class="cost">Cost: 2,797</span></div>
+          <div class="message-time">15:31:49</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="25" data-ts-ms="1759651676403" data-msg-index="717" data-date-full="2025_10_05" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #25 <span style="color: var(--accent); font-weight: 400;">(4m 26s Oct 05)</span></div>
+          <div class="message-total">Message #717</div>
+        </div>
+        <div class="message-text">write a current implementation doc cument to ntoe down our work with codex_stream_parser_fsm_v3.py . What&#x27;s the file architecture, what data format
+  it expect, and handle. List all state
+
+... [omitted]
+
+Waht are our next steps. Explain carefully what function does what and the fole of the variables, too. Put all this in a .md document and use the code command to open it for me in VS code</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 106,554 (5,392,245) | <span class="cost">Cost: 6,699</span></div>
+          <div class="message-time">15:07:56</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="24" data-ts-ms="1759651574565" data-msg-index="694" data-date-full="2025_10_05" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #24 <span style="color: var(--accent); font-weight: 400;">(1m 41s Oct 05)</span></div>
+          <div class="message-total">Message #694</div>
+        </div>
+        <div class="message-text">you have to put it in a .md file, then use the code command to open it for me. Be comprehenseive and thorough</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 104,710 (5,072,966) | <span class="cost">Cost: 1,844</span></div>
+          <div class="message-time">15:06:14</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="23" data-ts-ms="1759651466891" data-msg-index="681" data-date-full="2025_10_05" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #23 <span style="color: var(--accent); font-weight: 400;">(1m 13s Oct 05)</span></div>
+          <div class="message-total">Message #681</div>
+        </div>
+        <div class="message-text">write a requirement document, detailing what we&#x27;ve been trying to do (and not yet achieved, with this file. Write down that our test command is: 
+
+ cat /tmp/input.dump | python codex_stream_parser_fsm_v3.py --function-only  --args-sub-delta 8  --delay-ms 10
+
+Detail what the flags mean, why we need it</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 103,872 (4,968,256) | <span class="cost">Cost: 838</span></div>
+          <div class="message-time">15:04:26</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="22" data-ts-ms="1759650750619" data-msg-index="667" data-date-full="2025_10_05" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #22 <span style="color: var(--accent); font-weight: 400;">(1m 7s Oct 05)</span></div>
+          <div class="message-total">Message #667</div>
+        </div>
+        <div class="message-text">add a function to ToolHandler: fall_back. Port the default handling of printing of the &quot;not known bash&quot; cases along with all the variables neccessary for implementing the current printing logic there. Also add nice doc string so I know what variable has what value</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 103,602 (4,760,713) | <span class="cost">Cost: 270</span></div>
+          <div class="message-time">14:52:30</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="21" data-ts-ms="1759650436445" data-msg-index="649" data-date-full="2025_10_05" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #21 <span style="color: var(--accent); font-weight: 400;">(1m 46s Oct 05)</span></div>
+          <div class="message-total">Message #649</div>
+        </div>
+        <div class="message-text">Create a class ToolHandlers with only one static function: handle_known_bash_commands() , Delegate all logic to that fuction (And pass all the relevant variable with nice doc string so I know which one is which). All printing and logic for known bash command will be in there. This delegation must happen AFTER the detection of the known pattern</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 101,304 (4,553,696) | <span class="cost">Cost: 2,298</span></div>
+          <div class="message-time">14:47:16</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="20" data-ts-ms="1759649479480" data-msg-index="631" data-date-full="2025_10_05" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #20 <span style="color: var(--accent); font-weight: 400;">(1m 18s Oct 05)</span></div>
+          <div class="message-total">Message #631</div>
+        </div>
+        <div class="message-text">&#x27;{command:[bash,-lc&#x27; stop harcoding this, create a class KNOWN_PARTERNS.BASH_CMD and put it there</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 100,122 (4,250,505) | <span class="cost">Cost: 1,182</span></div>
+          <div class="message-time">14:31:19</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="19" data-ts-ms="1759649099024" data-msg-index="621" data-date-full="2025_10_05" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #19 <span style="color: var(--accent); font-weight: 400;">(33s Oct 05)</span></div>
+          <div class="message-total">Message #621</div>
+        </div>
+        <div class="message-text">ok, from now on start reporting concisely but not in one words , ok ? You have a budget of 6 sentences each turn</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 103,108 (4,150,383) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">14:24:59</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="18" data-ts-ms="1759648824553" data-msg-index="602" data-date-full="2025_10_05" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #18 <span style="color: var(--accent); font-weight: 400;">(2m 18s Oct 05)</span></div>
+          <div class="message-total">Message #602</div>
+        </div>
+        <div class="message-text">Let&#x27;s do some quick test. for   1. Recognized: bash -lc, you discard nothing but the {command:[bash,-lc , print the rest of the deltas verbatim, one line each. this should be the esiest t
+
+... [omitted]
+
+us print (data[&#x27;delta or whatever&#x27;)). This keep everything else the same. Isolate All the logic of the is known bash branch and leave it to me to edit. You still have to print it orrectly</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 98,943 (3,944,232) | <span class="cost">Cost: 4,165</span></div>
+          <div class="message-time">14:20:24</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="17" data-ts-ms="1759648564248" data-msg-index="581" data-date-full="2025_10_05" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #17 <span style="color: var(--accent); font-weight: 400;">(1m 12s Oct 05)</span></div>
+          <div class="message-total">Message #581</div>
+        </div>
+        <div class="message-text">commit here, note that we have &quot;initial success with deltacount=7&quot;. Wait for my further instruction. Reply with Done!</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 100,976 (3,647,764) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">14:16:04</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="16" data-ts-ms="1759648159122" data-msg-index="572" data-date-full="2025_10_05" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #16 <span style="color: var(--accent); font-weight: 400;">(1m 44s Oct 05)</span></div>
+          <div class="message-total">Message #572</div>
+        </div>
+        <div class="message-text">We successfully printed the flat command, then backtracked it to say that&#x27;s it a bash but then we failed to print the rest of the bash block correctly.
+
+[image 1924x1008 PNG]
+
+Stop coding
+
+... [omitted]
+
+to choose from a rich arsenal or human readable text format. Tell me, which condition you use to detect and after detection, how you handle printing : Print our the core code snippet here</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 104,381 (3,546,788) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">14:09:19</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="15" data-ts-ms="1759647093676" data-msg-index="504" data-date-full="2025_10_05" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #15 <span style="color: var(--accent); font-weight: 400;">(7m 4s Oct 05)</span></div>
+          <div class="message-total">Message #504</div>
+        </div>
+        <div class="message-text">introduce a --function-only, with it on the code skips everything that is not function args. add a flag to set delay because I need to see it slowly how your code first print the flat del
+
+... [omitted]
+
+6x842 PNG]
+Also, as you can see in the picture. Your code is failing to print out the core parts of the bash commands. What it did is print out the envelope, the part I want to THROW AWAY</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 93,310 (2,660,878) | <span class="cost">Cost: 11,071</span></div>
+          <div class="message-time">13:51:33</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="14" data-ts-ms="1759646482382" data-msg-index="479" data-date-full="2025_10_05" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #14 <span style="color: var(--accent); font-weight: 400;">(3m 54s Oct 05)</span></div>
+          <div class="message-total">Message #479</div>
+        </div>
+        <div class="message-text">› › &#x27;function.args.key1.{command:[bash,-lc&#x27; &lt;== this is it! This is how you know you are inside a bash lc block.
+  Implement the
+    live printing when without --show-fsm based on this th
+
+... [omitted]
+
+ip bash, lc) . This ends when the function.args block is finish of course.  you must enable sub delta at least 8 for this next task, cause anything lower than 7 won&#x27;t help you detect that</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 83,265 (2,403,061) | <span class="cost">Cost: 10,045</span></div>
+          <div class="message-time">13:41:22</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="13" data-ts-ms="1759646308596" data-msg-index="474" data-date-full="2025_10_05" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #13 <span style="color: var(--accent); font-weight: 400;">(5s Oct 05)</span></div>
+          <div class="message-total">Message #474</div>
+        </div>
+        <div class="message-text">you must enable sub delta at least 8 for this next task, cause anything lower than 7 won&#x27;t help you detect that</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 83,265 (2,403,061) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">13:38:28</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="12" data-ts-ms="1759646257139" data-msg-index="469" data-date-full="2025_10_05" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #12 <span style="color: var(--accent); font-weight: 400;">(3s Oct 05)</span></div>
+          <div class="message-total">Message #469</div>
+        </div>
+        <div class="message-text">› &#x27;function.args.key1.{command:[bash,-lc&#x27; &lt;== this is it! This is how you know you are inside a bash lc block. Implement the
+  live printing when without --show-fsm based on this this hap
+
+... [omitted]
+
+ou see state function.args.key1.{command:[bash in the fsm, then you start printing it as Bash
+  command:\ .... (skip bash, lc) . This ends when the function.args block is finish of course</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 83,265 (2,403,061) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">13:37:37</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="11" data-ts-ms="1759644315826" data-msg-index="417" data-date-full="2025_10_05" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #11 <span style="color: var(--accent); font-weight: 400;">(7m 23s Oct 05)</span></div>
+          <div class="message-total">Message #417</div>
+        </div>
+        <div class="message-text">it&#x27;s horrible, your code is a complete disaster. It detected nothing. Do this: work from the original (not your version, the exising version). create a v3 that&#x27;s based on this, but does t
+
+... [omitted]
+
+as, that sub level stop to exist (== &#x27;&#x27;). when you print with --show-fsm, I need to see: the existing state + &#x27;.&#x27; + the new sub state.. X must be able to be change by a flag, default to 5</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 70,355 (1,936,502) | <span class="cost">Cost: 12,910</span></div>
+          <div class="message-time">13:05:15</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="10" data-ts-ms="1759643611097" data-msg-index="348" data-date-full="2025_10_05" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #10 <span style="color: var(--accent); font-weight: 400;">(4m 34s Oct 05)</span></div>
+          <div class="message-total">Message #348</div>
+        </div>
+        <div class="message-text">you must add \n after each json, backtracked or not. other wise, \r loses its value</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 64,164 (1,336,102) | <span class="cost">Cost: 6,191</span></div>
+          <div class="message-time">12:53:31</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="9" data-ts-ms="1759643545935" data-msg-index="343" data-date-full="2025_10_05" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #9 <span style="color: var(--accent); font-weight: 400;">(3s Oct 05)</span></div>
+          <div class="message-total">Message #343</div>
+        </div>
+        <div class="message-text">[image 1924x424 PNG] &lt;== you missed a bash , and I want you to print the element of &quot;comand&quot;: [...], the remaining after your removed bash and -lc on a separate line vs the rest</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 64,164 (1,336,102) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">12:52:25</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="8" data-ts-ms="1759643113733" data-msg-index="311" data-date-full="2025_10_05" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #8 <span style="color: var(--accent); font-weight: 400;">(3m 16s Oct 05)</span></div>
+          <div class="message-total">Message #311</div>
+        </div>
+        <div class="message-text">you&#x27;re doing it wrong. the delay x flag add X ms PER DELTA, not per flow or blocks. 
+You must print out every single delta as they arrive, and still beable to backtrack using \r and repri
+
+... [omitted]
+
+igureout how many tokens are needed (less is better), and what they are, then backtrack at the right time so that the user can have the most uptodate deltas printed immediately to screeen</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 58,788 (1,150,925) | <span class="cost">Cost: 5,376</span></div>
+          <div class="message-time">12:45:13</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="7" data-ts-ms="1759642518033" data-msg-index="256" data-date-full="2025_10_05" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #7 <span style="color: var(--accent); font-weight: 400;">(4m 4s Oct 05)</span></div>
+          <div class="message-total">Message #256</div>
+        </div>
+        <div class="message-text">Ok, here comes the difficult part: You still print out delta as soon as they arive, be cause this is live streaming, remember ? But once you realize you&#x27;re in side a bash command, you imm
+
+... [omitted]
+
+d then if thare are leflt over top fild., just print key:value for each pairt, all these in color for function argument (we have strict preferences. refer to the ofiginal file to find out</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 44,569 (824,300) | <span class="cost">Cost: 14,219</span></div>
+          <div class="message-time">12:35:18</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="6" data-ts-ms="1759642200930" data-msg-index="232" data-date-full="2025_10_05" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #6 <span style="color: var(--accent); font-weight: 400;">(1m 10s Oct 05)</span></div>
+          <div class="message-total">Message #232</div>
+        </div>
+        <div class="message-text">edit your code to skip printing everything except function argument, then add a flag to the parser to simulate delay of x ms (5 ms by default) before printing out any text at all. This does not apply for skiipped text</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 43,452 (694,016) | <span class="cost">Cost: 1,117</span></div>
+          <div class="message-time">12:30:00</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="5" data-ts-ms="1759641904618" data-msg-index="176" data-date-full="2025_10_05" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #5 <span style="color: var(--accent); font-weight: 400;">(2m 30s Oct 05)</span></div>
+          <div class="message-total">Message #176</div>
+        </div>
+        <div class="message-text">take a look at codex_stream_parser_fsm.py  dont edit that file. create a v2. remove ALL the code related to detecting Bash inside that, and replaced with your own code. Don&#x27;t worry about
+
+... [omitted]
+
+to the human eye that the fsm has captured it. Basically you requriement is to design the name of the states, and how to detect it reliable in the middle of the print, as soon as possible</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 32,701 (422,897) | <span class="cost">Cost: 10,751</span></div>
+          <div class="message-time">12:25:04</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="4" data-ts-ms="1759641638276" data-msg-index="163" data-date-full="2025_10_05" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #4 <span style="color: var(--accent); font-weight: 400;">(1m 8s Oct 05)</span></div>
+          <div class="message-total">Message #163</div>
+        </div>
+        <div class="message-text">I want you to imagegine that youre inside the state machine , forget indenting and coloring , for now. when you are inside &lt;&lt;function.args...&gt;&gt; WHEN IS THE FIRST TIME YOU REALIZE that you&#x27;re in a bash command ? how many deltas since the beginning of that block does it take for you to know that we&#x27;re in bash ? Can we use the same detection algorithm everytime and get the count correct everytim ?</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 31,711 (390,196) | <span class="cost">Cost: 990</span></div>
+          <div class="message-time">12:20:38</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="3" data-ts-ms="1759641315709" data-msg-index="94" data-date-full="2025_10_05" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #3 <span style="color: var(--accent); font-weight: 400;">(1m 46s Oct 05)</span></div>
+          <div class="message-total">Message #94</div>
+        </div>
+        <div class="message-text">Dont edit the python codex_stream_parser_fsm.py file. If you want you can have your own parser, name it differnt ly</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 21,648 (162,359) | <span class="cost">Cost: 10,063</span></div>
+          <div class="message-time">12:15:15</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="2" data-ts-ms="1759641188709" data-msg-index="60" data-date-full="2025_10_05" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #2 <span style="color: var(--accent); font-weight: 400;">(1m 24s Oct 05)</span></div>
+          <div class="message-total">Message #60</div>
+        </div>
+        <div class="message-text">python my_cat.py -n 100000  | python codex_stream_parser_fsm.py --show-fsm &gt; dump
+~/KnowledgeBase/codex-mcp-server-usage
+this is where and how you can create the dump file. You have my pe
+
+... [omitted]
+
+)
+  {&quot;command&quot;: [&quot;bash&quot;, &quot;-lc&quot;,
+shows up a hundered million time, that&#x27;s what&#x27;s in the pattern, ok ? 
+Help me find a strategy to dectect and count this. With or without the --show-fsm tag</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 17,595 (87,444) | <span class="cost">Cost: 4,053</span></div>
+          <div class="message-time">12:13:08</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="1" data-ts-ms="1759640718823" data-msg-index="4" data-date-full="2025_10_05" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #1 <span style="color: var(--accent); font-weight: 400;">(1m 57s Oct 05)</span></div>
+          <div class="message-total">Message #4</div>
+        </div>
+        <div class="message-text">import os 
+
+fn = &quot;~/KnowledgeBase/codex-mcp-server-usage/dump&quot;
+fn = os.path.expanduser(fn)
+with open(fn, &#x27;r&#x27;) as file:
+    content = file.read()
+fn2 = &#x27;/tmp/pattern&#x27;    
+with open(fn2, &#x27;r&#x27;) as file2:
+    fn2 = file2.read()
+len(content)    
+fn2 in content
+
+help me figure out why pettern is not in dump, I see it alot, perhaps I added a \n or somethiing</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 9,872 (9,872) | <span class="cost">Cost: 7,723</span></div>
+          <div class="message-time">12:05:18</div>
+        </div>
+      </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Both time-based and message-based datasets
+    const CONTEXT_TIME_DATA = [{"x": 1759640769469, "y": 9872}, {"x": 1759640770127, "y": 9872}, {"x": 1759640783492, "y": 10781}, {"x": 1759640784023, "y": 10781}, {"x": 1759640786175, "y": 10925}, {"x": 1759640786800, "y": 10925}, {"x": 1759640789750, "y": 11065}, {"x": 1759640790666, "y": 11065}, {"x": 1759640793420, "y": 11173}, {"x": 1759640794035, "y": 11173}, {"x": 1759640808490, "y": 16033}, {"x": 1759640810022, "y": 16033}, {"x": 1759640836145, "y": 17595}, {"x": 1759641190035, "y": 17595}, {"x": 1759641249929, "y": 15755}, {"x": 1759641251051, "y": 15755}, {"x": 1759641253831, "y": 16827}, {"x": 1759641255372, "y": 16827}, {"x": 1759641265086, "y": 20685}, {"x": 1759641266080, "y": 20685}, {"x": 1759641271705, "y": 21648}, {"x": 1759641272719, "y": 21648}, {"x": 1759641316836, "y": 21648}, {"x": 1759641330364, "y": 19517}, {"x": 1759641331003, "y": 19517}, {"x": 1759641376506, "y": 22594}, {"x": 1759641377306, "y": 22594}, {"x": 1759641379439, "y": 22715}, {"x": 1759641380025, "y": 22715}, {"x": 1759641381594, "y": 23174}, {"x": 1759641382387, "y": 23174}, {"x": 1759641390819, "y": 23899}, {"x": 1759641391691, "y": 23899}, {"x": 1759641393281, "y": 25993}, {"x": 1759641393934, "y": 25993}, {"x": 1759641395652, "y": 28016}, {"x": 1759641396315, "y": 28016}, {"x": 1759641400836, "y": 30218}, {"x": 1759641401445, "y": 30218}, {"x": 1759641422124, "y": 31711}, {"x": 1759641639198, "y": 31711}, {"x": 1759641706442, "y": 32701}, {"x": 1759641906802, "y": 32701}, {"x": 1759641926238, "y": 30602}, {"x": 1759641926864, "y": 30602}, {"x": 1759642016160, "y": 38666}, {"x": 1759642016856, "y": 38666}, {"x": 1759642019794, "y": 38795}, {"x": 1759642020513, "y": 38795}, {"x": 1759642024526, "y": 39260}, {"x": 1759642025205, "y": 39260}, {"x": 1759642027278, "y": 39380}, {"x": 1759642028324, "y": 39380}, {"x": 1759642037404, "y": 40964}, {"x": 1759642038146, "y": 40964}, {"x": 1759642055557, "y": 43452}, {"x": 1759642203399, "y": 43452}, {"x": 1759642262665, "y": 42783}, {"x": 1759642263448, "y": 42783}, {"x": 1759642264909, "y": 42932}, {"x": 1759642266005, "y": 42932}, {"x": 1759642271249, "y": 44569}, {"x": 1759642519671, "y": 44569}, {"x": 1759642708818, "y": 51965}, {"x": 1759642709869, "y": 51965}, {"x": 1759642711856, "y": 52092}, {"x": 1759642712654, "y": 52092}, {"x": 1759642730024, "y": 53941}, {"x": 1759642731374, "y": 53941}, {"x": 1759642733544, "y": 54112}, {"x": 1759642734423, "y": 54112}, {"x": 1759642739532, "y": 55727}, {"x": 1759642740464, "y": 55727}, {"x": 1759642763024, "y": 58788}, {"x": 1759643115436, "y": 58788}, {"x": 1759643270385, "y": 60445}, {"x": 1759643271711, "y": 60445}, {"x": 1759643278067, "y": 60568}, {"x": 1759643278967, "y": 60568}, {"x": 1759643309772, "y": 64164}, {"x": 1759643549719, "y": 64164}, {"x": 1759643613517, "y": 64164}, {"x": 1759643737636, "y": 63169}, {"x": 1759643739613, "y": 63169}, {"x": 1759643744018, "y": 63345}, {"x": 1759643751060, "y": 63345}, {"x": 1759643771345, "y": 64952}, {"x": 1759643774175, "y": 64952}, {"x": 1759643802204, "y": 66227}, {"x": 1759643804186, "y": 66227}, {"x": 1759643815625, "y": 66897}, {"x": 1759643817828, "y": 66897}, {"x": 1759643843282, "y": 68258}, {"x": 1759643845647, "y": 68258}, {"x": 1759643849622, "y": 68443}, {"x": 1759643851385, "y": 68443}, {"x": 1759643857275, "y": 68754}, {"x": 1759643859298, "y": 68754}, {"x": 1759643885230, "y": 70355}, {"x": 1759644318400, "y": 70355}, {"x": 1759644416090, "y": 70355}, {"x": 1759644691834, "y": 73432}, {"x": 1759644693959, "y": 73432}, {"x": 1759644697981, "y": 73557}, {"x": 1759644700717, "y": 73557}, {"x": 1759644709594, "y": 76724}, {"x": 1759644711851, "y": 76724}, {"x": 1759644723346, "y": 79739}, {"x": 1759644725689, "y": 79739}, {"x": 1759644730900, "y": 79842}, {"x": 1759644732509, "y": 79842}, {"x": 1759644758952, "y": 83265}, {"x": 1759646260794, "y": 83265}, {"x": 1759646313646, "y": 83265}, {"x": 1759646485811, "y": 83265}, {"x": 1759646689600, "y": 82180}, {"x": 1759646693497, "y": 82180}, {"x": 1759646700130, "y": 82327}, {"x": 1759646704391, "y": 82327}, {"x": 1759646717351, "y": 93310}, {"x": 1759647109747, "y": 93310}, {"x": 1759647288282, "y": 94194}, {"x": 1759647299873, "y": 94194}, {"x": 1759647308753, "y": 94320}, {"x": 1759647312505, "y": 94320}, {"x": 1759647321961, "y": 94607}, {"x": 1759647332617, "y": 94607}, {"x": 1759647358730, "y": 96747}, {"x": 1759647362739, "y": 96747}, {"x": 1759647369786, "y": 96889}, {"x": 1759647373925, "y": 96889}, {"x": 1759647420048, "y": 99873}, {"x": 1759647423139, "y": 99873}, {"x": 1759647486567, "y": 102388}, {"x": 1759647490098, "y": 102388}, {"x": 1759647493994, "y": 102511}, {"x": 1759647497164, "y": 102511}, {"x": 1759647518113, "y": 104381}, {"x": 1759648167153, "y": 104381}, {"x": 1759648263779, "y": 100976}, {"x": 1759648576552, "y": 100976}, {"x": 1759648590721, "y": 98686}, {"x": 1759648597173, "y": 98686}, {"x": 1759648603025, "y": 98839}, {"x": 1759648634030, "y": 98839}, {"x": 1759648636927, "y": 98943}, {"x": 1759648830968, "y": 98943}, {"x": 1759648949531, "y": 103043}, {"x": 1759648959587, "y": 103043}, {"x": 1759648963474, "y": 103108}, {"x": 1759649115727, "y": 103108}, {"x": 1759649132961, "y": 100122}, {"x": 1759649495187, "y": 100122}, {"x": 1759649519027, "y": 100715}, {"x": 1759649529575, "y": 100715}, {"x": 1759649542110, "y": 101172}, {"x": 1759649552840, "y": 101172}, {"x": 1759649558326, "y": 101304}, {"x": 1759650442692, "y": 101304}, {"x": 1759650514360, "y": 103415}, {"x": 1759650533387, "y": 103415}, {"x": 1759650542795, "y": 103602}, {"x": 1759650757453, "y": 103602}, {"x": 1759650805272, "y": 103671}, {"x": 1759650812191, "y": 103671}, {"x": 1759650818400, "y": 103872}, {"x": 1759651472460, "y": 103872}, {"x": 1759651540651, "y": 104710}, {"x": 1759651579615, "y": 104710}, {"x": 1759651651903, "y": 106305}, {"x": 1759651656398, "y": 106305}, {"x": 1759651663636, "y": 106420}, {"x": 1759651670938, "y": 106420}, {"x": 1759651676388, "y": 106554}, {"x": 1759651682928, "y": 106554}, {"x": 1759651751887, "y": 108400}, {"x": 1759651759122, "y": 108400}, {"x": 1759651817962, "y": 110656}, {"x": 1759651857336, "y": 110656}, {"x": 1759651916476, "y": 113003}, {"x": 1759651924543, "y": 113003}, {"x": 1759651930002, "y": 113139}, {"x": 1759651936482, "y": 113139}, {"x": 1759651943308, "y": 113253}, {"x": 1759653120855, "y": 113253}, {"x": 1759653148336, "y": 113253}, {"x": 1759653243509, "y": 115808}, {"x": 1759653263568, "y": 115808}, {"x": 1759653271342, "y": 116050}];
+    const CUMULATIVE_TIME_DATA = [{"x": 1759640769469, "y": 9872}, {"x": 1759640770127, "y": 9872}, {"x": 1759640783492, "y": 20653}, {"x": 1759640784023, "y": 20653}, {"x": 1759640786175, "y": 31578}, {"x": 1759640786800, "y": 31578}, {"x": 1759640789750, "y": 42643}, {"x": 1759640790666, "y": 42643}, {"x": 1759640793420, "y": 53816}, {"x": 1759640794035, "y": 53816}, {"x": 1759640808490, "y": 69849}, {"x": 1759640810022, "y": 69849}, {"x": 1759640836145, "y": 87444}, {"x": 1759641190035, "y": 87444}, {"x": 1759641249929, "y": 103199}, {"x": 1759641251051, "y": 103199}, {"x": 1759641253831, "y": 120026}, {"x": 1759641255372, "y": 120026}, {"x": 1759641265086, "y": 140711}, {"x": 1759641266080, "y": 140711}, {"x": 1759641271705, "y": 162359}, {"x": 1759641272719, "y": 162359}, {"x": 1759641316836, "y": 162359}, {"x": 1759641330364, "y": 181876}, {"x": 1759641331003, "y": 181876}, {"x": 1759641376506, "y": 204470}, {"x": 1759641377306, "y": 204470}, {"x": 1759641379439, "y": 227185}, {"x": 1759641380025, "y": 227185}, {"x": 1759641381594, "y": 250359}, {"x": 1759641382387, "y": 250359}, {"x": 1759641390819, "y": 274258}, {"x": 1759641391691, "y": 274258}, {"x": 1759641393281, "y": 300251}, {"x": 1759641393934, "y": 300251}, {"x": 1759641395652, "y": 328267}, {"x": 1759641396315, "y": 328267}, {"x": 1759641400836, "y": 358485}, {"x": 1759641401445, "y": 358485}, {"x": 1759641422124, "y": 390196}, {"x": 1759641639198, "y": 390196}, {"x": 1759641706442, "y": 422897}, {"x": 1759641906802, "y": 422897}, {"x": 1759641926238, "y": 453499}, {"x": 1759641926864, "y": 453499}, {"x": 1759642016160, "y": 492165}, {"x": 1759642016856, "y": 492165}, {"x": 1759642019794, "y": 530960}, {"x": 1759642020513, "y": 530960}, {"x": 1759642024526, "y": 570220}, {"x": 1759642025205, "y": 570220}, {"x": 1759642027278, "y": 609600}, {"x": 1759642028324, "y": 609600}, {"x": 1759642037404, "y": 650564}, {"x": 1759642038146, "y": 650564}, {"x": 1759642055557, "y": 694016}, {"x": 1759642203399, "y": 694016}, {"x": 1759642262665, "y": 736799}, {"x": 1759642263448, "y": 736799}, {"x": 1759642264909, "y": 779731}, {"x": 1759642266005, "y": 779731}, {"x": 1759642271249, "y": 824300}, {"x": 1759642519671, "y": 824300}, {"x": 1759642708818, "y": 876265}, {"x": 1759642709869, "y": 876265}, {"x": 1759642711856, "y": 928357}, {"x": 1759642712654, "y": 928357}, {"x": 1759642730024, "y": 982298}, {"x": 1759642731374, "y": 982298}, {"x": 1759642733544, "y": 1036410}, {"x": 1759642734423, "y": 1036410}, {"x": 1759642739532, "y": 1092137}, {"x": 1759642740464, "y": 1092137}, {"x": 1759642763024, "y": 1150925}, {"x": 1759643115436, "y": 1150925}, {"x": 1759643270385, "y": 1211370}, {"x": 1759643271711, "y": 1211370}, {"x": 1759643278067, "y": 1271938}, {"x": 1759643278967, "y": 1271938}, {"x": 1759643309772, "y": 1336102}, {"x": 1759643549719, "y": 1336102}, {"x": 1759643613517, "y": 1336102}, {"x": 1759643737636, "y": 1399271}, {"x": 1759643739613, "y": 1399271}, {"x": 1759643744018, "y": 1462616}, {"x": 1759643751060, "y": 1462616}, {"x": 1759643771345, "y": 1527568}, {"x": 1759643774175, "y": 1527568}, {"x": 1759643802204, "y": 1593795}, {"x": 1759643804186, "y": 1593795}, {"x": 1759643815625, "y": 1660692}, {"x": 1759643817828, "y": 1660692}, {"x": 1759643843282, "y": 1728950}, {"x": 1759643845647, "y": 1728950}, {"x": 1759643849622, "y": 1797393}, {"x": 1759643851385, "y": 1797393}, {"x": 1759643857275, "y": 1866147}, {"x": 1759643859298, "y": 1866147}, {"x": 1759643885230, "y": 1936502}, {"x": 1759644318400, "y": 1936502}, {"x": 1759644416090, "y": 1936502}, {"x": 1759644691834, "y": 2009934}, {"x": 1759644693959, "y": 2009934}, {"x": 1759644697981, "y": 2083491}, {"x": 1759644700717, "y": 2083491}, {"x": 1759644709594, "y": 2160215}, {"x": 1759644711851, "y": 2160215}, {"x": 1759644723346, "y": 2239954}, {"x": 1759644725689, "y": 2239954}, {"x": 1759644730900, "y": 2319796}, {"x": 1759644732509, "y": 2319796}, {"x": 1759644758952, "y": 2403061}, {"x": 1759646260794, "y": 2403061}, {"x": 1759646313646, "y": 2403061}, {"x": 1759646485811, "y": 2403061}, {"x": 1759646689600, "y": 2485241}, {"x": 1759646693497, "y": 2485241}, {"x": 1759646700130, "y": 2567568}, {"x": 1759646704391, "y": 2567568}, {"x": 1759646717351, "y": 2660878}, {"x": 1759647109747, "y": 2660878}, {"x": 1759647288282, "y": 2755072}, {"x": 1759647299873, "y": 2755072}, {"x": 1759647308753, "y": 2849392}, {"x": 1759647312505, "y": 2849392}, {"x": 1759647321961, "y": 2943999}, {"x": 1759647332617, "y": 2943999}, {"x": 1759647358730, "y": 3040746}, {"x": 1759647362739, "y": 3040746}, {"x": 1759647369786, "y": 3137635}, {"x": 1759647373925, "y": 3137635}, {"x": 1759647420048, "y": 3237508}, {"x": 1759647423139, "y": 3237508}, {"x": 1759647486567, "y": 3339896}, {"x": 1759647490098, "y": 3339896}, {"x": 1759647493994, "y": 3442407}, {"x": 1759647497164, "y": 3442407}, {"x": 1759647518113, "y": 3546788}, {"x": 1759648167153, "y": 3546788}, {"x": 1759648263779, "y": 3647764}, {"x": 1759648576552, "y": 3647764}, {"x": 1759648590721, "y": 3746450}, {"x": 1759648597173, "y": 3746450}, {"x": 1759648603025, "y": 3845289}, {"x": 1759648634030, "y": 3845289}, {"x": 1759648636927, "y": 3944232}, {"x": 1759648830968, "y": 3944232}, {"x": 1759648949531, "y": 4047275}, {"x": 1759648959587, "y": 4047275}, {"x": 1759648963474, "y": 4150383}, {"x": 1759649115727, "y": 4150383}, {"x": 1759649132961, "y": 4250505}, {"x": 1759649495187, "y": 4250505}, {"x": 1759649519027, "y": 4351220}, {"x": 1759649529575, "y": 4351220}, {"x": 1759649542110, "y": 4452392}, {"x": 1759649552840, "y": 4452392}, {"x": 1759649558326, "y": 4553696}, {"x": 1759650442692, "y": 4553696}, {"x": 1759650514360, "y": 4657111}, {"x": 1759650533387, "y": 4657111}, {"x": 1759650542795, "y": 4760713}, {"x": 1759650757453, "y": 4760713}, {"x": 1759650805272, "y": 4864384}, {"x": 1759650812191, "y": 4864384}, {"x": 1759650818400, "y": 4968256}, {"x": 1759651472460, "y": 4968256}, {"x": 1759651540651, "y": 5072966}, {"x": 1759651579615, "y": 5072966}, {"x": 1759651651903, "y": 5179271}, {"x": 1759651656398, "y": 5179271}, {"x": 1759651663636, "y": 5285691}, {"x": 1759651670938, "y": 5285691}, {"x": 1759651676388, "y": 5392245}, {"x": 1759651682928, "y": 5392245}, {"x": 1759651751887, "y": 5500645}, {"x": 1759651759122, "y": 5500645}, {"x": 1759651817962, "y": 5611301}, {"x": 1759651857336, "y": 5611301}, {"x": 1759651916476, "y": 5724304}, {"x": 1759651924543, "y": 5724304}, {"x": 1759651930002, "y": 5837443}, {"x": 1759651936482, "y": 5837443}, {"x": 1759651943308, "y": 5950696}, {"x": 1759653120855, "y": 5950696}, {"x": 1759653148336, "y": 5950696}, {"x": 1759653243509, "y": 6066504}, {"x": 1759653263568, "y": 6066504}, {"x": 1759653271342, "y": 6182554}];
+    const CONTEXT_MSG_DATA = [{"x": 14, "y": 9872, "ts": "2025-10-05T12:06:09.469Z"}, {"x": 20, "y": 9872, "ts": "2025-10-05T12:06:10.127Z"}, {"x": 21, "y": 10781, "ts": "2025-10-05T12:06:23.492Z"}, {"x": 26, "y": 10781, "ts": "2025-10-05T12:06:24.023Z"}, {"x": 27, "y": 10925, "ts": "2025-10-05T12:06:26.175Z"}, {"x": 32, "y": 10925, "ts": "2025-10-05T12:06:26.800Z"}, {"x": 33, "y": 11065, "ts": "2025-10-05T12:06:29.750Z"}, {"x": 38, "y": 11065, "ts": "2025-10-05T12:06:30.666Z"}, {"x": 39, "y": 11173, "ts": "2025-10-05T12:06:33.420Z"}, {"x": 44, "y": 11173, "ts": "2025-10-05T12:06:34.035Z"}, {"x": 45, "y": 16033, "ts": "2025-10-05T12:06:48.490Z"}, {"x": 50, "y": 16033, "ts": "2025-10-05T12:06:50.022Z"}, {"x": 56, "y": 17595, "ts": "2025-10-05T12:07:16.145Z"}, {"x": 62, "y": 17595, "ts": "2025-10-05T12:13:10.035Z"}, {"x": 70, "y": 15755, "ts": "2025-10-05T12:14:09.929Z"}, {"x": 76, "y": 15755, "ts": "2025-10-05T12:14:11.051Z"}, {"x": 77, "y": 16827, "ts": "2025-10-05T12:14:13.831Z"}, {"x": 81, "y": 16827, "ts": "2025-10-05T12:14:15.372Z"}, {"x": 82, "y": 20685, "ts": "2025-10-05T12:14:25.086Z"}, {"x": 86, "y": 20685, "ts": "2025-10-05T12:14:26.080Z"}, {"x": 87, "y": 21648, "ts": "2025-10-05T12:14:31.705Z"}, {"x": 91, "y": 21648, "ts": "2025-10-05T12:14:32.719Z"}, {"x": 96, "y": 21648, "ts": "2025-10-05T12:15:16.836Z"}, {"x": 99, "y": 19517, "ts": "2025-10-05T12:15:30.364Z"}, {"x": 105, "y": 19517, "ts": "2025-10-05T12:15:31.003Z"}, {"x": 111, "y": 22594, "ts": "2025-10-05T12:16:16.506Z"}, {"x": 116, "y": 22594, "ts": "2025-10-05T12:16:17.306Z"}, {"x": 117, "y": 22715, "ts": "2025-10-05T12:16:19.439Z"}, {"x": 122, "y": 22715, "ts": "2025-10-05T12:16:20.025Z"}, {"x": 123, "y": 23174, "ts": "2025-10-05T12:16:21.594Z"}, {"x": 128, "y": 23174, "ts": "2025-10-05T12:16:22.387Z"}, {"x": 131, "y": 23899, "ts": "2025-10-05T12:16:30.819Z"}, {"x": 136, "y": 23899, "ts": "2025-10-05T12:16:31.691Z"}, {"x": 137, "y": 25993, "ts": "2025-10-05T12:16:33.281Z"}, {"x": 141, "y": 25993, "ts": "2025-10-05T12:16:33.934Z"}, {"x": 142, "y": 28016, "ts": "2025-10-05T12:16:35.652Z"}, {"x": 146, "y": 28016, "ts": "2025-10-05T12:16:36.315Z"}, {"x": 148, "y": 30218, "ts": "2025-10-05T12:16:40.836Z"}, {"x": 153, "y": 30218, "ts": "2025-10-05T12:16:41.445Z"}, {"x": 159, "y": 31711, "ts": "2025-10-05T12:17:02.124Z"}, {"x": 165, "y": 31711, "ts": "2025-10-05T12:20:39.198Z"}, {"x": 172, "y": 32701, "ts": "2025-10-05T12:21:46.442Z"}, {"x": 178, "y": 32701, "ts": "2025-10-05T12:25:06.802Z"}, {"x": 184, "y": 30602, "ts": "2025-10-05T12:25:26.238Z"}, {"x": 190, "y": 30602, "ts": "2025-10-05T12:25:26.864Z"}, {"x": 197, "y": 38666, "ts": "2025-10-05T12:26:56.160Z"}, {"x": 202, "y": 38666, "ts": "2025-10-05T12:26:56.856Z"}, {"x": 203, "y": 38795, "ts": "2025-10-05T12:26:59.794Z"}, {"x": 208, "y": 38795, "ts": "2025-10-05T12:27:00.513Z"}, {"x": 210, "y": 39260, "ts": "2025-10-05T12:27:04.526Z"}, {"x": 215, "y": 39260, "ts": "2025-10-05T12:27:05.205Z"}, {"x": 216, "y": 39380, "ts": "2025-10-05T12:27:07.278Z"}, {"x": 220, "y": 39380, "ts": "2025-10-05T12:27:08.324Z"}, {"x": 221, "y": 40964, "ts": "2025-10-05T12:27:17.404Z"}, {"x": 226, "y": 40964, "ts": "2025-10-05T12:27:18.146Z"}, {"x": 228, "y": 43452, "ts": "2025-10-05T12:27:35.557Z"}, {"x": 234, "y": 43452, "ts": "2025-10-05T12:30:03.399Z"}, {"x": 241, "y": 42783, "ts": "2025-10-05T12:31:02.665Z"}, {"x": 246, "y": 42783, "ts": "2025-10-05T12:31:03.448Z"}, {"x": 247, "y": 42932, "ts": "2025-10-05T12:31:04.909Z"}, {"x": 251, "y": 42932, "ts": "2025-10-05T12:31:06.005Z"}, {"x": 253, "y": 44569, "ts": "2025-10-05T12:31:11.249Z"}, {"x": 258, "y": 44569, "ts": "2025-10-05T12:35:19.671Z"}, {"x": 270, "y": 51965, "ts": "2025-10-05T12:38:28.818Z"}, {"x": 275, "y": 51965, "ts": "2025-10-05T12:38:29.869Z"}, {"x": 276, "y": 52092, "ts": "2025-10-05T12:38:31.856Z"}, {"x": 280, "y": 52092, "ts": "2025-10-05T12:38:32.654Z"}, {"x": 284, "y": 53941, "ts": "2025-10-05T12:38:50.024Z"}, {"x": 289, "y": 53941, "ts": "2025-10-05T12:38:51.374Z"}, {"x": 290, "y": 54112, "ts": "2025-10-05T12:38:53.544Z"}, {"x": 294, "y": 54112, "ts": "2025-10-05T12:38:54.423Z"}, {"x": 295, "y": 55727, "ts": "2025-10-05T12:38:59.532Z"}, {"x": 300, "y": 55727, "ts": "2025-10-05T12:39:00.464Z"}, {"x": 307, "y": 58788, "ts": "2025-10-05T12:39:23.024Z"}, {"x": 313, "y": 58788, "ts": "2025-10-05T12:45:15.436Z"}, {"x": 322, "y": 60445, "ts": "2025-10-05T12:47:50.385Z"}, {"x": 327, "y": 60445, "ts": "2025-10-05T12:47:51.711Z"}, {"x": 328, "y": 60568, "ts": "2025-10-05T12:47:58.067Z"}, {"x": 332, "y": 60568, "ts": "2025-10-05T12:47:58.967Z"}, {"x": 339, "y": 64164, "ts": "2025-10-05T12:48:29.772Z"}, {"x": 345, "y": 64164, "ts": "2025-10-05T12:52:29.719Z"}, {"x": 350, "y": 64164, "ts": "2025-10-05T12:53:33.517Z"}, {"x": 359, "y": 63169, "ts": "2025-10-05T12:55:37.636Z"}, {"x": 364, "y": 63169, "ts": "2025-10-05T12:55:39.613Z"}, {"x": 365, "y": 63345, "ts": "2025-10-05T12:55:44.018Z"}, {"x": 370, "y": 63345, "ts": "2025-10-05T12:55:51.060Z"}, {"x": 371, "y": 64952, "ts": "2025-10-05T12:56:11.345Z"}, {"x": 376, "y": 64952, "ts": "2025-10-05T12:56:14.175Z"}, {"x": 378, "y": 66227, "ts": "2025-10-05T12:56:42.204Z"}, {"x": 383, "y": 66227, "ts": "2025-10-05T12:56:44.186Z"}, {"x": 385, "y": 66897, "ts": "2025-10-05T12:56:55.625Z"}, {"x": 390, "y": 66897, "ts": "2025-10-05T12:56:57.828Z"}, {"x": 392, "y": 68258, "ts": "2025-10-05T12:57:23.282Z"}, {"x": 397, "y": 68258, "ts": "2025-10-05T12:57:25.647Z"}, {"x": 398, "y": 68443, "ts": "2025-10-05T12:57:29.622Z"}, {"x": 402, "y": 68443, "ts": "2025-10-05T12:57:31.385Z"}, {"x": 403, "y": 68754, "ts": "2025-10-05T12:57:37.275Z"}, {"x": 408, "y": 68754, "ts": "2025-10-05T12:57:39.298Z"}, {"x": 413, "y": 70355, "ts": "2025-10-05T12:58:05.230Z"}, {"x": 419, "y": 70355, "ts": "2025-10-05T13:05:18.400Z"}, {"x": 421, "y": 70355, "ts": "2025-10-05T13:06:56.090Z"}, {"x": 432, "y": 73432, "ts": "2025-10-05T13:11:31.834Z"}, {"x": 437, "y": 73432, "ts": "2025-10-05T13:11:33.959Z"}, {"x": 438, "y": 73557, "ts": "2025-10-05T13:11:37.981Z"}, {"x": 442, "y": 73557, "ts": "2025-10-05T13:11:40.717Z"}, {"x": 444, "y": 76724, "ts": "2025-10-05T13:11:49.594Z"}, {"x": 449, "y": 76724, "ts": "2025-10-05T13:11:51.851Z"}, {"x": 451, "y": 79739, "ts": "2025-10-05T13:12:03.346Z"}, {"x": 456, "y": 79739, "ts": "2025-10-05T13:12:05.689Z"}, {"x": 458, "y": 79842, "ts": "2025-10-05T13:12:10.900Z"}, {"x": 463, "y": 79842, "ts": "2025-10-05T13:12:12.509Z"}, {"x": 465, "y": 83265, "ts": "2025-10-05T13:12:38.952Z"}, {"x": 471, "y": 83265, "ts": "2025-10-05T13:37:40.794Z"}, {"x": 476, "y": 83265, "ts": "2025-10-05T13:38:33.646Z"}, {"x": 481, "y": 83265, "ts": "2025-10-05T13:41:25.811Z"}, {"x": 489, "y": 82180, "ts": "2025-10-05T13:44:49.600Z"}, {"x": 494, "y": 82180, "ts": "2025-10-05T13:44:53.497Z"}, {"x": 495, "y": 82327, "ts": "2025-10-05T13:45:00.130Z"}, {"x": 499, "y": 82327, "ts": "2025-10-05T13:45:04.391Z"}, {"x": 501, "y": 93310, "ts": "2025-10-05T13:45:17.351Z"}, {"x": 506, "y": 93310, "ts": "2025-10-05T13:51:49.747Z"}, {"x": 515, "y": 94194, "ts": "2025-10-05T13:54:48.282Z"}, {"x": 520, "y": 94194, "ts": "2025-10-05T13:54:59.873Z"}, {"x": 521, "y": 94320, "ts": "2025-10-05T13:55:08.753Z"}, {"x": 525, "y": 94320, "ts": "2025-10-05T13:55:12.505Z"}, {"x": 527, "y": 94607, "ts": "2025-10-05T13:55:21.961Z"}, {"x": 532, "y": 94607, "ts": "2025-10-05T13:55:32.617Z"}, {"x": 534, "y": 96747, "ts": "2025-10-05T13:55:58.730Z"}, {"x": 539, "y": 96747, "ts": "2025-10-05T13:56:02.739Z"}, {"x": 540, "y": 96889, "ts": "2025-10-05T13:56:09.786Z"}, {"x": 544, "y": 96889, "ts": "2025-10-05T13:56:13.925Z"}, {"x": 545, "y": 99873, "ts": "2025-10-05T13:57:00.048Z"}, {"x": 550, "y": 99873, "ts": "2025-10-05T13:57:03.139Z"}, {"x": 556, "y": 102388, "ts": "2025-10-05T13:58:06.567Z"}, {"x": 561, "y": 102388, "ts": "2025-10-05T13:58:10.098Z"}, {"x": 562, "y": 102511, "ts": "2025-10-05T13:58:13.994Z"}, {"x": 566, "y": 102511, "ts": "2025-10-05T13:58:17.164Z"}, {"x": 568, "y": 104381, "ts": "2025-10-05T13:58:38.113Z"}, {"x": 574, "y": 104381, "ts": "2025-10-05T14:09:27.153Z"}, {"x": 577, "y": 100976, "ts": "2025-10-05T14:11:03.779Z"}, {"x": 583, "y": 100976, "ts": "2025-10-05T14:16:16.552Z"}, {"x": 586, "y": 98686, "ts": "2025-10-05T14:16:30.721Z"}, {"x": 592, "y": 98686, "ts": "2025-10-05T14:16:37.173Z"}, {"x": 593, "y": 98839, "ts": "2025-10-05T14:16:43.025Z"}, {"x": 597, "y": 98839, "ts": "2025-10-05T14:17:14.030Z"}, {"x": 599, "y": 98943, "ts": "2025-10-05T14:17:16.927Z"}, {"x": 604, "y": 98943, "ts": "2025-10-05T14:20:30.968Z"}, {"x": 611, "y": 103043, "ts": "2025-10-05T14:22:29.531Z"}, {"x": 616, "y": 103043, "ts": "2025-10-05T14:22:39.587Z"}, {"x": 618, "y": 103108, "ts": "2025-10-05T14:22:43.474Z"}, {"x": 623, "y": 103108, "ts": "2025-10-05T14:25:15.727Z"}, {"x": 627, "y": 100122, "ts": "2025-10-05T14:25:32.961Z"}, {"x": 633, "y": 100122, "ts": "2025-10-05T14:31:35.187Z"}, {"x": 634, "y": 100715, "ts": "2025-10-05T14:31:59.027Z"}, {"x": 639, "y": 100715, "ts": "2025-10-05T14:32:09.575Z"}, {"x": 640, "y": 101172, "ts": "2025-10-05T14:32:22.110Z"}, {"x": 644, "y": 101172, "ts": "2025-10-05T14:32:32.840Z"}, {"x": 646, "y": 101304, "ts": "2025-10-05T14:32:38.326Z"}, {"x": 651, "y": 101304, "ts": "2025-10-05T14:47:22.692Z"}, {"x": 657, "y": 103415, "ts": "2025-10-05T14:48:34.360Z"}, {"x": 662, "y": 103415, "ts": "2025-10-05T14:48:53.387Z"}, {"x": 664, "y": 103602, "ts": "2025-10-05T14:49:02.795Z"}, {"x": 669, "y": 103602, "ts": "2025-10-05T14:52:37.453Z"}, {"x": 671, "y": 103671, "ts": "2025-10-05T14:53:25.272Z"}, {"x": 676, "y": 103671, "ts": "2025-10-05T14:53:32.191Z"}, {"x": 678, "y": 103872, "ts": "2025-10-05T14:53:38.400Z"}, {"x": 683, "y": 103872, "ts": "2025-10-05T15:04:32.460Z"}, {"x": 690, "y": 104710, "ts": "2025-10-05T15:05:40.651Z"}, {"x": 696, "y": 104710, "ts": "2025-10-05T15:06:19.615Z"}, {"x": 702, "y": 106305, "ts": "2025-10-05T15:07:31.903Z"}, {"x": 707, "y": 106305, "ts": "2025-10-05T15:07:36.398Z"}, {"x": 708, "y": 106420, "ts": "2025-10-05T15:07:43.636Z"}, {"x": 712, "y": 106420, "ts": "2025-10-05T15:07:50.938Z"}, {"x": 714, "y": 106554, "ts": "2025-10-05T15:07:56.388Z"}, {"x": 719, "y": 106554, "ts": "2025-10-05T15:08:02.928Z"}, {"x": 725, "y": 108400, "ts": "2025-10-05T15:09:11.887Z"}, {"x": 730, "y": 108400, "ts": "2025-10-05T15:09:19.122Z"}, {"x": 732, "y": 110656, "ts": "2025-10-05T15:10:17.962Z"}, {"x": 737, "y": 110656, "ts": "2025-10-05T15:10:57.336Z"}, {"x": 738, "y": 113003, "ts": "2025-10-05T15:11:56.476Z"}, {"x": 743, "y": 113003, "ts": "2025-10-05T15:12:04.543Z"}, {"x": 744, "y": 113139, "ts": "2025-10-05T15:12:10.002Z"}, {"x": 748, "y": 113139, "ts": "2025-10-05T15:12:16.482Z"}, {"x": 750, "y": 113253, "ts": "2025-10-05T15:12:23.308Z"}, {"x": 755, "y": 113253, "ts": "2025-10-05T15:32:00.855Z"}, {"x": 757, "y": 113253, "ts": "2025-10-05T15:32:28.336Z"}, {"x": 763, "y": 115808, "ts": "2025-10-05T15:34:03.509Z"}, {"x": 768, "y": 115808, "ts": "2025-10-05T15:34:23.568Z"}, {"x": 770, "y": 116050, "ts": "2025-10-05T15:34:31.342Z"}];
+    const CUMULATIVE_MSG_DATA = [{"x": 14, "y": 9872, "ts": "2025-10-05T12:06:09.469Z"}, {"x": 20, "y": 9872, "ts": "2025-10-05T12:06:10.127Z"}, {"x": 21, "y": 20653, "ts": "2025-10-05T12:06:23.492Z"}, {"x": 26, "y": 20653, "ts": "2025-10-05T12:06:24.023Z"}, {"x": 27, "y": 31578, "ts": "2025-10-05T12:06:26.175Z"}, {"x": 32, "y": 31578, "ts": "2025-10-05T12:06:26.800Z"}, {"x": 33, "y": 42643, "ts": "2025-10-05T12:06:29.750Z"}, {"x": 38, "y": 42643, "ts": "2025-10-05T12:06:30.666Z"}, {"x": 39, "y": 53816, "ts": "2025-10-05T12:06:33.420Z"}, {"x": 44, "y": 53816, "ts": "2025-10-05T12:06:34.035Z"}, {"x": 45, "y": 69849, "ts": "2025-10-05T12:06:48.490Z"}, {"x": 50, "y": 69849, "ts": "2025-10-05T12:06:50.022Z"}, {"x": 56, "y": 87444, "ts": "2025-10-05T12:07:16.145Z"}, {"x": 62, "y": 87444, "ts": "2025-10-05T12:13:10.035Z"}, {"x": 70, "y": 103199, "ts": "2025-10-05T12:14:09.929Z"}, {"x": 76, "y": 103199, "ts": "2025-10-05T12:14:11.051Z"}, {"x": 77, "y": 120026, "ts": "2025-10-05T12:14:13.831Z"}, {"x": 81, "y": 120026, "ts": "2025-10-05T12:14:15.372Z"}, {"x": 82, "y": 140711, "ts": "2025-10-05T12:14:25.086Z"}, {"x": 86, "y": 140711, "ts": "2025-10-05T12:14:26.080Z"}, {"x": 87, "y": 162359, "ts": "2025-10-05T12:14:31.705Z"}, {"x": 91, "y": 162359, "ts": "2025-10-05T12:14:32.719Z"}, {"x": 96, "y": 162359, "ts": "2025-10-05T12:15:16.836Z"}, {"x": 99, "y": 181876, "ts": "2025-10-05T12:15:30.364Z"}, {"x": 105, "y": 181876, "ts": "2025-10-05T12:15:31.003Z"}, {"x": 111, "y": 204470, "ts": "2025-10-05T12:16:16.506Z"}, {"x": 116, "y": 204470, "ts": "2025-10-05T12:16:17.306Z"}, {"x": 117, "y": 227185, "ts": "2025-10-05T12:16:19.439Z"}, {"x": 122, "y": 227185, "ts": "2025-10-05T12:16:20.025Z"}, {"x": 123, "y": 250359, "ts": "2025-10-05T12:16:21.594Z"}, {"x": 128, "y": 250359, "ts": "2025-10-05T12:16:22.387Z"}, {"x": 131, "y": 274258, "ts": "2025-10-05T12:16:30.819Z"}, {"x": 136, "y": 274258, "ts": "2025-10-05T12:16:31.691Z"}, {"x": 137, "y": 300251, "ts": "2025-10-05T12:16:33.281Z"}, {"x": 141, "y": 300251, "ts": "2025-10-05T12:16:33.934Z"}, {"x": 142, "y": 328267, "ts": "2025-10-05T12:16:35.652Z"}, {"x": 146, "y": 328267, "ts": "2025-10-05T12:16:36.315Z"}, {"x": 148, "y": 358485, "ts": "2025-10-05T12:16:40.836Z"}, {"x": 153, "y": 358485, "ts": "2025-10-05T12:16:41.445Z"}, {"x": 159, "y": 390196, "ts": "2025-10-05T12:17:02.124Z"}, {"x": 165, "y": 390196, "ts": "2025-10-05T12:20:39.198Z"}, {"x": 172, "y": 422897, "ts": "2025-10-05T12:21:46.442Z"}, {"x": 178, "y": 422897, "ts": "2025-10-05T12:25:06.802Z"}, {"x": 184, "y": 453499, "ts": "2025-10-05T12:25:26.238Z"}, {"x": 190, "y": 453499, "ts": "2025-10-05T12:25:26.864Z"}, {"x": 197, "y": 492165, "ts": "2025-10-05T12:26:56.160Z"}, {"x": 202, "y": 492165, "ts": "2025-10-05T12:26:56.856Z"}, {"x": 203, "y": 530960, "ts": "2025-10-05T12:26:59.794Z"}, {"x": 208, "y": 530960, "ts": "2025-10-05T12:27:00.513Z"}, {"x": 210, "y": 570220, "ts": "2025-10-05T12:27:04.526Z"}, {"x": 215, "y": 570220, "ts": "2025-10-05T12:27:05.205Z"}, {"x": 216, "y": 609600, "ts": "2025-10-05T12:27:07.278Z"}, {"x": 220, "y": 609600, "ts": "2025-10-05T12:27:08.324Z"}, {"x": 221, "y": 650564, "ts": "2025-10-05T12:27:17.404Z"}, {"x": 226, "y": 650564, "ts": "2025-10-05T12:27:18.146Z"}, {"x": 228, "y": 694016, "ts": "2025-10-05T12:27:35.557Z"}, {"x": 234, "y": 694016, "ts": "2025-10-05T12:30:03.399Z"}, {"x": 241, "y": 736799, "ts": "2025-10-05T12:31:02.665Z"}, {"x": 246, "y": 736799, "ts": "2025-10-05T12:31:03.448Z"}, {"x": 247, "y": 779731, "ts": "2025-10-05T12:31:04.909Z"}, {"x": 251, "y": 779731, "ts": "2025-10-05T12:31:06.005Z"}, {"x": 253, "y": 824300, "ts": "2025-10-05T12:31:11.249Z"}, {"x": 258, "y": 824300, "ts": "2025-10-05T12:35:19.671Z"}, {"x": 270, "y": 876265, "ts": "2025-10-05T12:38:28.818Z"}, {"x": 275, "y": 876265, "ts": "2025-10-05T12:38:29.869Z"}, {"x": 276, "y": 928357, "ts": "2025-10-05T12:38:31.856Z"}, {"x": 280, "y": 928357, "ts": "2025-10-05T12:38:32.654Z"}, {"x": 284, "y": 982298, "ts": "2025-10-05T12:38:50.024Z"}, {"x": 289, "y": 982298, "ts": "2025-10-05T12:38:51.374Z"}, {"x": 290, "y": 1036410, "ts": "2025-10-05T12:38:53.544Z"}, {"x": 294, "y": 1036410, "ts": "2025-10-05T12:38:54.423Z"}, {"x": 295, "y": 1092137, "ts": "2025-10-05T12:38:59.532Z"}, {"x": 300, "y": 1092137, "ts": "2025-10-05T12:39:00.464Z"}, {"x": 307, "y": 1150925, "ts": "2025-10-05T12:39:23.024Z"}, {"x": 313, "y": 1150925, "ts": "2025-10-05T12:45:15.436Z"}, {"x": 322, "y": 1211370, "ts": "2025-10-05T12:47:50.385Z"}, {"x": 327, "y": 1211370, "ts": "2025-10-05T12:47:51.711Z"}, {"x": 328, "y": 1271938, "ts": "2025-10-05T12:47:58.067Z"}, {"x": 332, "y": 1271938, "ts": "2025-10-05T12:47:58.967Z"}, {"x": 339, "y": 1336102, "ts": "2025-10-05T12:48:29.772Z"}, {"x": 345, "y": 1336102, "ts": "2025-10-05T12:52:29.719Z"}, {"x": 350, "y": 1336102, "ts": "2025-10-05T12:53:33.517Z"}, {"x": 359, "y": 1399271, "ts": "2025-10-05T12:55:37.636Z"}, {"x": 364, "y": 1399271, "ts": "2025-10-05T12:55:39.613Z"}, {"x": 365, "y": 1462616, "ts": "2025-10-05T12:55:44.018Z"}, {"x": 370, "y": 1462616, "ts": "2025-10-05T12:55:51.060Z"}, {"x": 371, "y": 1527568, "ts": "2025-10-05T12:56:11.345Z"}, {"x": 376, "y": 1527568, "ts": "2025-10-05T12:56:14.175Z"}, {"x": 378, "y": 1593795, "ts": "2025-10-05T12:56:42.204Z"}, {"x": 383, "y": 1593795, "ts": "2025-10-05T12:56:44.186Z"}, {"x": 385, "y": 1660692, "ts": "2025-10-05T12:56:55.625Z"}, {"x": 390, "y": 1660692, "ts": "2025-10-05T12:56:57.828Z"}, {"x": 392, "y": 1728950, "ts": "2025-10-05T12:57:23.282Z"}, {"x": 397, "y": 1728950, "ts": "2025-10-05T12:57:25.647Z"}, {"x": 398, "y": 1797393, "ts": "2025-10-05T12:57:29.622Z"}, {"x": 402, "y": 1797393, "ts": "2025-10-05T12:57:31.385Z"}, {"x": 403, "y": 1866147, "ts": "2025-10-05T12:57:37.275Z"}, {"x": 408, "y": 1866147, "ts": "2025-10-05T12:57:39.298Z"}, {"x": 413, "y": 1936502, "ts": "2025-10-05T12:58:05.230Z"}, {"x": 419, "y": 1936502, "ts": "2025-10-05T13:05:18.400Z"}, {"x": 421, "y": 1936502, "ts": "2025-10-05T13:06:56.090Z"}, {"x": 432, "y": 2009934, "ts": "2025-10-05T13:11:31.834Z"}, {"x": 437, "y": 2009934, "ts": "2025-10-05T13:11:33.959Z"}, {"x": 438, "y": 2083491, "ts": "2025-10-05T13:11:37.981Z"}, {"x": 442, "y": 2083491, "ts": "2025-10-05T13:11:40.717Z"}, {"x": 444, "y": 2160215, "ts": "2025-10-05T13:11:49.594Z"}, {"x": 449, "y": 2160215, "ts": "2025-10-05T13:11:51.851Z"}, {"x": 451, "y": 2239954, "ts": "2025-10-05T13:12:03.346Z"}, {"x": 456, "y": 2239954, "ts": "2025-10-05T13:12:05.689Z"}, {"x": 458, "y": 2319796, "ts": "2025-10-05T13:12:10.900Z"}, {"x": 463, "y": 2319796, "ts": "2025-10-05T13:12:12.509Z"}, {"x": 465, "y": 2403061, "ts": "2025-10-05T13:12:38.952Z"}, {"x": 471, "y": 2403061, "ts": "2025-10-05T13:37:40.794Z"}, {"x": 476, "y": 2403061, "ts": "2025-10-05T13:38:33.646Z"}, {"x": 481, "y": 2403061, "ts": "2025-10-05T13:41:25.811Z"}, {"x": 489, "y": 2485241, "ts": "2025-10-05T13:44:49.600Z"}, {"x": 494, "y": 2485241, "ts": "2025-10-05T13:44:53.497Z"}, {"x": 495, "y": 2567568, "ts": "2025-10-05T13:45:00.130Z"}, {"x": 499, "y": 2567568, "ts": "2025-10-05T13:45:04.391Z"}, {"x": 501, "y": 2660878, "ts": "2025-10-05T13:45:17.351Z"}, {"x": 506, "y": 2660878, "ts": "2025-10-05T13:51:49.747Z"}, {"x": 515, "y": 2755072, "ts": "2025-10-05T13:54:48.282Z"}, {"x": 520, "y": 2755072, "ts": "2025-10-05T13:54:59.873Z"}, {"x": 521, "y": 2849392, "ts": "2025-10-05T13:55:08.753Z"}, {"x": 525, "y": 2849392, "ts": "2025-10-05T13:55:12.505Z"}, {"x": 527, "y": 2943999, "ts": "2025-10-05T13:55:21.961Z"}, {"x": 532, "y": 2943999, "ts": "2025-10-05T13:55:32.617Z"}, {"x": 534, "y": 3040746, "ts": "2025-10-05T13:55:58.730Z"}, {"x": 539, "y": 3040746, "ts": "2025-10-05T13:56:02.739Z"}, {"x": 540, "y": 3137635, "ts": "2025-10-05T13:56:09.786Z"}, {"x": 544, "y": 3137635, "ts": "2025-10-05T13:56:13.925Z"}, {"x": 545, "y": 3237508, "ts": "2025-10-05T13:57:00.048Z"}, {"x": 550, "y": 3237508, "ts": "2025-10-05T13:57:03.139Z"}, {"x": 556, "y": 3339896, "ts": "2025-10-05T13:58:06.567Z"}, {"x": 561, "y": 3339896, "ts": "2025-10-05T13:58:10.098Z"}, {"x": 562, "y": 3442407, "ts": "2025-10-05T13:58:13.994Z"}, {"x": 566, "y": 3442407, "ts": "2025-10-05T13:58:17.164Z"}, {"x": 568, "y": 3546788, "ts": "2025-10-05T13:58:38.113Z"}, {"x": 574, "y": 3546788, "ts": "2025-10-05T14:09:27.153Z"}, {"x": 577, "y": 3647764, "ts": "2025-10-05T14:11:03.779Z"}, {"x": 583, "y": 3647764, "ts": "2025-10-05T14:16:16.552Z"}, {"x": 586, "y": 3746450, "ts": "2025-10-05T14:16:30.721Z"}, {"x": 592, "y": 3746450, "ts": "2025-10-05T14:16:37.173Z"}, {"x": 593, "y": 3845289, "ts": "2025-10-05T14:16:43.025Z"}, {"x": 597, "y": 3845289, "ts": "2025-10-05T14:17:14.030Z"}, {"x": 599, "y": 3944232, "ts": "2025-10-05T14:17:16.927Z"}, {"x": 604, "y": 3944232, "ts": "2025-10-05T14:20:30.968Z"}, {"x": 611, "y": 4047275, "ts": "2025-10-05T14:22:29.531Z"}, {"x": 616, "y": 4047275, "ts": "2025-10-05T14:22:39.587Z"}, {"x": 618, "y": 4150383, "ts": "2025-10-05T14:22:43.474Z"}, {"x": 623, "y": 4150383, "ts": "2025-10-05T14:25:15.727Z"}, {"x": 627, "y": 4250505, "ts": "2025-10-05T14:25:32.961Z"}, {"x": 633, "y": 4250505, "ts": "2025-10-05T14:31:35.187Z"}, {"x": 634, "y": 4351220, "ts": "2025-10-05T14:31:59.027Z"}, {"x": 639, "y": 4351220, "ts": "2025-10-05T14:32:09.575Z"}, {"x": 640, "y": 4452392, "ts": "2025-10-05T14:32:22.110Z"}, {"x": 644, "y": 4452392, "ts": "2025-10-05T14:32:32.840Z"}, {"x": 646, "y": 4553696, "ts": "2025-10-05T14:32:38.326Z"}, {"x": 651, "y": 4553696, "ts": "2025-10-05T14:47:22.692Z"}, {"x": 657, "y": 4657111, "ts": "2025-10-05T14:48:34.360Z"}, {"x": 662, "y": 4657111, "ts": "2025-10-05T14:48:53.387Z"}, {"x": 664, "y": 4760713, "ts": "2025-10-05T14:49:02.795Z"}, {"x": 669, "y": 4760713, "ts": "2025-10-05T14:52:37.453Z"}, {"x": 671, "y": 4864384, "ts": "2025-10-05T14:53:25.272Z"}, {"x": 676, "y": 4864384, "ts": "2025-10-05T14:53:32.191Z"}, {"x": 678, "y": 4968256, "ts": "2025-10-05T14:53:38.400Z"}, {"x": 683, "y": 4968256, "ts": "2025-10-05T15:04:32.460Z"}, {"x": 690, "y": 5072966, "ts": "2025-10-05T15:05:40.651Z"}, {"x": 696, "y": 5072966, "ts": "2025-10-05T15:06:19.615Z"}, {"x": 702, "y": 5179271, "ts": "2025-10-05T15:07:31.903Z"}, {"x": 707, "y": 5179271, "ts": "2025-10-05T15:07:36.398Z"}, {"x": 708, "y": 5285691, "ts": "2025-10-05T15:07:43.636Z"}, {"x": 712, "y": 5285691, "ts": "2025-10-05T15:07:50.938Z"}, {"x": 714, "y": 5392245, "ts": "2025-10-05T15:07:56.388Z"}, {"x": 719, "y": 5392245, "ts": "2025-10-05T15:08:02.928Z"}, {"x": 725, "y": 5500645, "ts": "2025-10-05T15:09:11.887Z"}, {"x": 730, "y": 5500645, "ts": "2025-10-05T15:09:19.122Z"}, {"x": 732, "y": 5611301, "ts": "2025-10-05T15:10:17.962Z"}, {"x": 737, "y": 5611301, "ts": "2025-10-05T15:10:57.336Z"}, {"x": 738, "y": 5724304, "ts": "2025-10-05T15:11:56.476Z"}, {"x": 743, "y": 5724304, "ts": "2025-10-05T15:12:04.543Z"}, {"x": 744, "y": 5837443, "ts": "2025-10-05T15:12:10.002Z"}, {"x": 748, "y": 5837443, "ts": "2025-10-05T15:12:16.482Z"}, {"x": 750, "y": 5950696, "ts": "2025-10-05T15:12:23.308Z"}, {"x": 755, "y": 5950696, "ts": "2025-10-05T15:32:00.855Z"}, {"x": 757, "y": 5950696, "ts": "2025-10-05T15:32:28.336Z"}, {"x": 763, "y": 6066504, "ts": "2025-10-05T15:34:03.509Z"}, {"x": 768, "y": 6066504, "ts": "2025-10-05T15:34:23.568Z"}, {"x": 770, "y": 6182554, "ts": "2025-10-05T15:34:31.342Z"}];
+
+    const USER_MESSAGES_CONTEXT = [{"x": 4, "y": 9872, "message": "import os \n\nfn = \"~/KnowledgeBase/codex-mcp-server-usage/dump\"\nfn = os.path.expanduser(fn)\nwith open(fn, 'r') as file:\n    content = file.read()\nfn2 = '/tmp/pattern'    \nwith open(fn2, 'r') as file2:\n    fn2 = file2.read()\nlen(content)    \nfn2 in content\n\nhelp me figure out why pettern is not in dump, I see it alot, perhaps I added a \\n or somethiing", "user_msg_index": 1, "total_msg_index": 4, "x_time": 1759640718823, "x_msg": 4, "cost": 7723, "duration": "(1m 57s)"}, {"x": 60, "y": 17595, "message": "python my_cat.py -n 100000  | python codex_stream_parser_fsm.py --show-fsm > dump\n~/KnowledgeBase/codex-mcp-server-usage\nthis is where and how you can create the dump file. You have my permission to run this and over write dump, ok ? \n\nwhat we're trying to do is trying to capture:\n\n\n{\n  \"command\": [\n    \"bash\",\n    \"-lc\",\n    \"ls -la ~/swe/redis-stream-test/docs\"\n  ]}\n\nbecause the first part (raw from appending the deltas)\n  {\"command\": [\"bash\", \"-lc\",\nshows up a hundered million time, that's what's in the pattern, ok ? \nHelp me find a strategy to dectect and count this. With or without the --show-fsm tag", "user_msg_index": 2, "total_msg_index": 60, "x_time": 1759641188709, "x_msg": 60, "cost": 4053, "duration": "(1m 24s)"}, {"x": 94, "y": 21648, "message": "Dont edit the python codex_stream_parser_fsm.py file. If you want you can have your own parser, name it differnt ly", "user_msg_index": 3, "total_msg_index": 94, "x_time": 1759641315709, "x_msg": 94, "cost": 10063, "duration": "(1m 46s)"}, {"x": 163, "y": 31711, "message": "I want you to imagegine that youre inside the state machine , forget indenting and coloring , for now. when you are inside <<function.args...>> WHEN IS THE FIRST TIME YOU REALIZE that you're in a bash command ? how many deltas since the beginning of that block does it take for you to know that we're in bash ? Can we use the same detection algorithm everytime and get the count correct everytim ?", "user_msg_index": 4, "total_msg_index": 163, "x_time": 1759641638276, "x_msg": 163, "cost": 990, "duration": "(1m 8s)"}, {"x": 176, "y": 32701, "message": "take a look at codex_stream_parser_fsm.py  dont edit that file. create a v2. remove ALL the code related to detecting Bash inside that, and replaced with your own code. Don't worry about printing format yet. You improve the FSM design so that once we hit that \"inside Bash yet\" state, printing stuff out with --show-fsm must make it visible to the human eye that the fsm has captured it. Basically you requriement is to design the name of the states, and how to detect it reliable in the middle of the print, as soon as possible", "user_msg_index": 5, "total_msg_index": 176, "x_time": 1759641904618, "x_msg": 176, "cost": 10751, "duration": "(2m 30s)"}, {"x": 232, "y": 43452, "message": "edit your code to skip printing everything except function argument, then add a flag to the parser to simulate delay of x ms (5 ms by default) before printing out any text at all. This does not apply for skiipped text", "user_msg_index": 6, "total_msg_index": 232, "x_time": 1759642200930, "x_msg": 232, "cost": 1117, "duration": "(1m 10s)"}, {"x": 256, "y": 44569, "message": "Ok, here comes the difficult part: You still print out delta as soon as they arive, be cause this is live streaming, remember ? But once you realize you're in side a bash command, you immediately print \\r to \"delete\" what you printed, and print out in tool color instead, and skip the \"bash\" \"lc\" (the part that repeat everytime) and the envelop of that. Basically print ing the rest of the array, and then if thare are leflt over top fild., just print key:value for each pairt, all these in color for function argument (we have strict preferences. refer to the ofiginal file to find out", "user_msg_index": 7, "total_msg_index": 256, "x_time": 1759642518033, "x_msg": 256, "cost": 14219, "duration": "(4m 4s)"}, {"x": 311, "y": 58788, "message": "you're doing it wrong. the delay x flag add X ms PER DELTA, not per flow or blocks. \nYou must print out every single delta as they arrive, and still beable to backtrack using \\r and reprint the first line. But once you start applying linebrake, you loose the ability to backtrack. That's why you print stuf first, then see if they're bash command or not. If they are, you backtract and adapt a bash friendly format, removeing bash and -lc. If they're not, you also backtrack, but print out context awware json with indent rather than the custom algo for bash. This is where your fast bash_or_not detection algorrithn comes in. The first few tokens are always the same for bash commands . Your task is to figureout how many tokens are needed (less is better), and what they are, then backtrack at the right time so that the user can have the most uptodate deltas printed immediately to screeen", "user_msg_index": 8, "total_msg_index": 311, "x_time": 1759643113733, "x_msg": 311, "cost": 5376, "duration": "(3m 16s)"}, {"x": 343, "y": 64164, "message": "[image 1924x424 PNG] <== you missed a bash , and I want you to print the element of \"comand\": [...], the remaining after your removed bash and -lc on a separate line vs the rest", "user_msg_index": 9, "total_msg_index": 343, "x_time": 1759643545935, "x_msg": 343, "cost": 0, "duration": "(3s)"}, {"x": 348, "y": 64164, "message": "you must add \\n after each json, backtracked or not. other wise, \\r loses its value", "user_msg_index": 10, "total_msg_index": 348, "x_time": 1759643611097, "x_msg": 348, "cost": 6191, "duration": "(4m 34s)"}, {"x": 417, "y": 70355, "message": "it's horrible, your code is a complete disaster. It detected nothing. Do this: work from the original (not your version, the exising version). create a v3 that's based on this, but does this: for the function argurment (the green blocks) only, the FSM has another sub level (but make sure old code still work by pretending in their logics that that sub level doesn't exists. The sublevel is simply the sum of the stripped (remove \\n, \"\", \\t) of the delta part since the beginning of the json of that function argument, maximum X dealtas. After x deltas, that sub level stop to exist (== ''). when you print with --show-fsm, I need to see: the existing state + '.' + the new sub state.. X must be able to be change by a flag, default to 5", "user_msg_index": 11, "total_msg_index": 417, "x_time": 1759644315826, "x_msg": 417, "cost": 12910, "duration": "(7m 23s)"}, {"x": 469, "y": 83265, "message": "\u203a 'function.args.key1.{command:[bash,-lc' <== this is it! This is how you know you are inside a bash lc block. Implement the\n  live printing when without --show-fsm based on this this happens only when we're 5-9 deltas in . The requireement is to\n  print deltas normally until you see state function.args.key1.{command:[bash in the fsm, then you start printing it as Bash\n  command:\\ .... (skip bash, lc) . This ends when the function.args block is finish of course", "user_msg_index": 12, "total_msg_index": 469, "x_time": 1759646257139, "x_msg": 469, "cost": 0, "duration": "(3s)"}, {"x": 474, "y": 83265, "message": "you must enable sub delta at least 8 for this next task, cause anything lower than 7 won't help you detect that", "user_msg_index": 13, "total_msg_index": 474, "x_time": 1759646308596, "x_msg": 474, "cost": 0, "duration": "(5s)"}, {"x": 479, "y": 83265, "message": "\u203a \u203a 'function.args.key1.{command:[bash,-lc' <== this is it! This is how you know you are inside a bash lc block.\n  Implement the\n    live printing when without --show-fsm based on this this happens only when we're 5-9 deltas in . The requireement\n  is to\n    print deltas normally until you see state function.args.key1.{command:[bash in the fsm, then you start printing it\n  as Bash\n    command:\\ .... (skip bash, lc) . This ends when the function.args block is finish of course.  you must enable sub delta at least 8 for this next task, cause anything lower than 7 won't help you detect that", "user_msg_index": 14, "total_msg_index": 479, "x_time": 1759646482382, "x_msg": 479, "cost": 10045, "duration": "(3m 54s)"}, {"x": 504, "y": 93310, "message": "introduce a --function-only, with it on the code skips everything that is not function args. add a flag to set delay because I need to see it slowly how your code first print the flat deltas, then \"cancel\" it with \\r and start printing json with indent instead. All the functionargs that are NOT known commands (For now, bash with lc only) will be printed flat (no json.dumps(indent). \n[image 706x842 PNG]\nAlso, as you can see in the picture. Your code is failing to print out the core parts of the bash commands. What it did is print out the envelope, the part I want to THROW AWAY", "user_msg_index": 15, "total_msg_index": 504, "x_time": 1759647093676, "x_msg": 504, "cost": 11071, "duration": "(7m 4s)"}, {"x": 572, "y": 104381, "message": "We successfully printed the flat command, then backtracked it to say that's it a bash but then we failed to print the rest of the bash block correctly.\n\n[image 1924x1008 PNG]\n\nStop coding (to file) for now, tell me. How you handle the printing of the remainder of the Bash block, and the \"unrecognized\" block. After 7 deltas, a critical junction occurs where we now know which command we're dealing with, thus allowing us to choose from a rich arsenal or human readable text format. Tell me, which condition you use to detect and after detection, how you handle printing : Print our the core code snippet here", "user_msg_index": 16, "total_msg_index": 572, "x_time": 1759648159122, "x_msg": 572, "cost": 0, "duration": "(1m 44s)"}, {"x": 581, "y": 100976, "message": "commit here, note that we have \"initial success with deltacount=7\". Wait for my further instruction. Reply with Done!", "user_msg_index": 17, "total_msg_index": 581, "x_time": 1759648564248, "x_msg": 581, "cost": 0, "duration": "(1m 12s)"}, {"x": 602, "y": 98943, "message": "Let's do some quick test. for   1. Recognized: bash -lc, you discard nothing but the {command:[bash,-lc , print the rest of the deltas verbatim, one line each. this should be the esiest thing to do in the world. delete all processing for that branch (is known bash branch). Give me a clean fucntion with enough parameter to work with, that jus print (data['delta or whatever')). This keep everything else the same. Isolate All the logic of the is known bash branch and leave it to me to edit. You still have to print it orrectly", "user_msg_index": 18, "total_msg_index": 602, "x_time": 1759648824553, "x_msg": 602, "cost": 4165, "duration": "(2m 18s)"}, {"x": 621, "y": 103108, "message": "ok, from now on start reporting concisely but not in one words , ok ? You have a budget of 6 sentences each turn", "user_msg_index": 19, "total_msg_index": 621, "x_time": 1759649099024, "x_msg": 621, "cost": 0, "duration": "(33s)"}, {"x": 631, "y": 100122, "message": "'{command:[bash,-lc' stop harcoding this, create a class KNOWN_PARTERNS.BASH_CMD and put it there", "user_msg_index": 20, "total_msg_index": 631, "x_time": 1759649479480, "x_msg": 631, "cost": 1182, "duration": "(1m 18s)"}, {"x": 649, "y": 101304, "message": "Create a class ToolHandlers with only one static function: handle_known_bash_commands() , Delegate all logic to that fuction (And pass all the relevant variable with nice doc string so I know which one is which). All printing and logic for known bash command will be in there. This delegation must happen AFTER the detection of the known pattern", "user_msg_index": 21, "total_msg_index": 649, "x_time": 1759650436445, "x_msg": 649, "cost": 2298, "duration": "(1m 46s)"}, {"x": 667, "y": 103602, "message": "add a function to ToolHandler: fall_back. Port the default handling of printing of the \"not known bash\" cases along with all the variables neccessary for implementing the current printing logic there. Also add nice doc string so I know what variable has what value", "user_msg_index": 22, "total_msg_index": 667, "x_time": 1759650750619, "x_msg": 667, "cost": 270, "duration": "(1m 7s)"}, {"x": 681, "y": 103872, "message": "write a requirement document, detailing what we've been trying to do (and not yet achieved, with this file. Write down that our test command is: \n\n cat /tmp/input.dump | python codex_stream_parser_fsm_v3.py --function-only  --args-sub-delta 8  --delay-ms 10\n\nDetail what the flags mean, why we need it", "user_msg_index": 23, "total_msg_index": 681, "x_time": 1759651466891, "x_msg": 681, "cost": 838, "duration": "(1m 13s)"}, {"x": 694, "y": 104710, "message": "you have to put it in a .md file, then use the code command to open it for me. Be comprehenseive and thorough", "user_msg_index": 24, "total_msg_index": 694, "x_time": 1759651574565, "x_msg": 694, "cost": 1844, "duration": "(1m 41s)"}, {"x": 717, "y": 106554, "message": "write a current implementation doc cument to ntoe down our work with codex_stream_parser_fsm_v3.py . What's the file architecture, what data format\n  it expect, and handle. List all states of the state machines, and how we impelemented the detection of the first known command: Bash command. Waht are our next steps. Explain carefully what function does what and the fole of the variables, too. Put all this in a .md document and use the code command to open it for me in VS code", "user_msg_index": 25, "total_msg_index": 717, "x_time": 1759651676403, "x_msg": 717, "cost": 6699, "duration": "(4m 26s)"}, {"x": 753, "y": 113253, "message": "write a code to extract only function arguments json from --input , default to  ~/AgenticProjects/agent-executors/stream_watch/output/codex/sse_lines.jsonl , and dump to an output file or to sdtout, the file could be pipable or with --hours which will choose only the last x hours latest data-points", "user_msg_index": 26, "total_msg_index": 753, "x_time": 1759653109428, "x_msg": 753, "cost": 2797, "duration": "(2m 41s)"}];
+    const USER_MESSAGES_CUMULATIVE = [{"x": 4, "y": 9872, "message": "import os \n\nfn = \"~/KnowledgeBase/codex-mcp-server-usage/dump\"\nfn = os.path.expanduser(fn)\nwith open(fn, 'r') as file:\n    content = file.read()\nfn2 = '/tmp/pattern'    \nwith open(fn2, 'r') as file2:\n    fn2 = file2.read()\nlen(content)    \nfn2 in content\n\nhelp me figure out why pettern is not in dump, I see it alot, perhaps I added a \\n or somethiing", "user_msg_index": 1, "total_msg_index": 4, "x_time": 1759640718823, "x_msg": 4, "cost": 7723, "duration": "(1m 57s)"}, {"x": 60, "y": 87444, "message": "python my_cat.py -n 100000  | python codex_stream_parser_fsm.py --show-fsm > dump\n~/KnowledgeBase/codex-mcp-server-usage\nthis is where and how you can create the dump file. You have my permission to run this and over write dump, ok ? \n\nwhat we're trying to do is trying to capture:\n\n\n{\n  \"command\": [\n    \"bash\",\n    \"-lc\",\n    \"ls -la ~/swe/redis-stream-test/docs\"\n  ]}\n\nbecause the first part (raw from appending the deltas)\n  {\"command\": [\"bash\", \"-lc\",\nshows up a hundered million time, that's what's in the pattern, ok ? \nHelp me find a strategy to dectect and count this. With or without the --show-fsm tag", "user_msg_index": 2, "total_msg_index": 60, "x_time": 1759641188709, "x_msg": 60, "cost": 4053, "duration": "(1m 24s)"}, {"x": 94, "y": 162359, "message": "Dont edit the python codex_stream_parser_fsm.py file. If you want you can have your own parser, name it differnt ly", "user_msg_index": 3, "total_msg_index": 94, "x_time": 1759641315709, "x_msg": 94, "cost": 10063, "duration": "(1m 46s)"}, {"x": 163, "y": 390196, "message": "I want you to imagegine that youre inside the state machine , forget indenting and coloring , for now. when you are inside <<function.args...>> WHEN IS THE FIRST TIME YOU REALIZE that you're in a bash command ? how many deltas since the beginning of that block does it take for you to know that we're in bash ? Can we use the same detection algorithm everytime and get the count correct everytim ?", "user_msg_index": 4, "total_msg_index": 163, "x_time": 1759641638276, "x_msg": 163, "cost": 990, "duration": "(1m 8s)"}, {"x": 176, "y": 422897, "message": "take a look at codex_stream_parser_fsm.py  dont edit that file. create a v2. remove ALL the code related to detecting Bash inside that, and replaced with your own code. Don't worry about printing format yet. You improve the FSM design so that once we hit that \"inside Bash yet\" state, printing stuff out with --show-fsm must make it visible to the human eye that the fsm has captured it. Basically you requriement is to design the name of the states, and how to detect it reliable in the middle of the print, as soon as possible", "user_msg_index": 5, "total_msg_index": 176, "x_time": 1759641904618, "x_msg": 176, "cost": 10751, "duration": "(2m 30s)"}, {"x": 232, "y": 694016, "message": "edit your code to skip printing everything except function argument, then add a flag to the parser to simulate delay of x ms (5 ms by default) before printing out any text at all. This does not apply for skiipped text", "user_msg_index": 6, "total_msg_index": 232, "x_time": 1759642200930, "x_msg": 232, "cost": 1117, "duration": "(1m 10s)"}, {"x": 256, "y": 824300, "message": "Ok, here comes the difficult part: You still print out delta as soon as they arive, be cause this is live streaming, remember ? But once you realize you're in side a bash command, you immediately print \\r to \"delete\" what you printed, and print out in tool color instead, and skip the \"bash\" \"lc\" (the part that repeat everytime) and the envelop of that. Basically print ing the rest of the array, and then if thare are leflt over top fild., just print key:value for each pairt, all these in color for function argument (we have strict preferences. refer to the ofiginal file to find out", "user_msg_index": 7, "total_msg_index": 256, "x_time": 1759642518033, "x_msg": 256, "cost": 14219, "duration": "(4m 4s)"}, {"x": 311, "y": 1150925, "message": "you're doing it wrong. the delay x flag add X ms PER DELTA, not per flow or blocks. \nYou must print out every single delta as they arrive, and still beable to backtrack using \\r and reprint the first line. But once you start applying linebrake, you loose the ability to backtrack. That's why you print stuf first, then see if they're bash command or not. If they are, you backtract and adapt a bash friendly format, removeing bash and -lc. If they're not, you also backtrack, but print out context awware json with indent rather than the custom algo for bash. This is where your fast bash_or_not detection algorrithn comes in. The first few tokens are always the same for bash commands . Your task is to figureout how many tokens are needed (less is better), and what they are, then backtrack at the right time so that the user can have the most uptodate deltas printed immediately to screeen", "user_msg_index": 8, "total_msg_index": 311, "x_time": 1759643113733, "x_msg": 311, "cost": 5376, "duration": "(3m 16s)"}, {"x": 343, "y": 1336102, "message": "[image 1924x424 PNG] <== you missed a bash , and I want you to print the element of \"comand\": [...], the remaining after your removed bash and -lc on a separate line vs the rest", "user_msg_index": 9, "total_msg_index": 343, "x_time": 1759643545935, "x_msg": 343, "cost": 0, "duration": "(3s)"}, {"x": 348, "y": 1336102, "message": "you must add \\n after each json, backtracked or not. other wise, \\r loses its value", "user_msg_index": 10, "total_msg_index": 348, "x_time": 1759643611097, "x_msg": 348, "cost": 6191, "duration": "(4m 34s)"}, {"x": 417, "y": 1936502, "message": "it's horrible, your code is a complete disaster. It detected nothing. Do this: work from the original (not your version, the exising version). create a v3 that's based on this, but does this: for the function argurment (the green blocks) only, the FSM has another sub level (but make sure old code still work by pretending in their logics that that sub level doesn't exists. The sublevel is simply the sum of the stripped (remove \\n, \"\", \\t) of the delta part since the beginning of the json of that function argument, maximum X dealtas. After x deltas, that sub level stop to exist (== ''). when you print with --show-fsm, I need to see: the existing state + '.' + the new sub state.. X must be able to be change by a flag, default to 5", "user_msg_index": 11, "total_msg_index": 417, "x_time": 1759644315826, "x_msg": 417, "cost": 12910, "duration": "(7m 23s)"}, {"x": 469, "y": 2403061, "message": "\u203a 'function.args.key1.{command:[bash,-lc' <== this is it! This is how you know you are inside a bash lc block. Implement the\n  live printing when without --show-fsm based on this this happens only when we're 5-9 deltas in . The requireement is to\n  print deltas normally until you see state function.args.key1.{command:[bash in the fsm, then you start printing it as Bash\n  command:\\ .... (skip bash, lc) . This ends when the function.args block is finish of course", "user_msg_index": 12, "total_msg_index": 469, "x_time": 1759646257139, "x_msg": 469, "cost": 0, "duration": "(3s)"}, {"x": 474, "y": 2403061, "message": "you must enable sub delta at least 8 for this next task, cause anything lower than 7 won't help you detect that", "user_msg_index": 13, "total_msg_index": 474, "x_time": 1759646308596, "x_msg": 474, "cost": 0, "duration": "(5s)"}, {"x": 479, "y": 2403061, "message": "\u203a \u203a 'function.args.key1.{command:[bash,-lc' <== this is it! This is how you know you are inside a bash lc block.\n  Implement the\n    live printing when without --show-fsm based on this this happens only when we're 5-9 deltas in . The requireement\n  is to\n    print deltas normally until you see state function.args.key1.{command:[bash in the fsm, then you start printing it\n  as Bash\n    command:\\ .... (skip bash, lc) . This ends when the function.args block is finish of course.  you must enable sub delta at least 8 for this next task, cause anything lower than 7 won't help you detect that", "user_msg_index": 14, "total_msg_index": 479, "x_time": 1759646482382, "x_msg": 479, "cost": 10045, "duration": "(3m 54s)"}, {"x": 504, "y": 2660878, "message": "introduce a --function-only, with it on the code skips everything that is not function args. add a flag to set delay because I need to see it slowly how your code first print the flat deltas, then \"cancel\" it with \\r and start printing json with indent instead. All the functionargs that are NOT known commands (For now, bash with lc only) will be printed flat (no json.dumps(indent). \n[image 706x842 PNG]\nAlso, as you can see in the picture. Your code is failing to print out the core parts of the bash commands. What it did is print out the envelope, the part I want to THROW AWAY", "user_msg_index": 15, "total_msg_index": 504, "x_time": 1759647093676, "x_msg": 504, "cost": 11071, "duration": "(7m 4s)"}, {"x": 572, "y": 3546788, "message": "We successfully printed the flat command, then backtracked it to say that's it a bash but then we failed to print the rest of the bash block correctly.\n\n[image 1924x1008 PNG]\n\nStop coding (to file) for now, tell me. How you handle the printing of the remainder of the Bash block, and the \"unrecognized\" block. After 7 deltas, a critical junction occurs where we now know which command we're dealing with, thus allowing us to choose from a rich arsenal or human readable text format. Tell me, which condition you use to detect and after detection, how you handle printing : Print our the core code snippet here", "user_msg_index": 16, "total_msg_index": 572, "x_time": 1759648159122, "x_msg": 572, "cost": 0, "duration": "(1m 44s)"}, {"x": 581, "y": 3647764, "message": "commit here, note that we have \"initial success with deltacount=7\". Wait for my further instruction. Reply with Done!", "user_msg_index": 17, "total_msg_index": 581, "x_time": 1759648564248, "x_msg": 581, "cost": 0, "duration": "(1m 12s)"}, {"x": 602, "y": 3944232, "message": "Let's do some quick test. for   1. Recognized: bash -lc, you discard nothing but the {command:[bash,-lc , print the rest of the deltas verbatim, one line each. this should be the esiest thing to do in the world. delete all processing for that branch (is known bash branch). Give me a clean fucntion with enough parameter to work with, that jus print (data['delta or whatever')). This keep everything else the same. Isolate All the logic of the is known bash branch and leave it to me to edit. You still have to print it orrectly", "user_msg_index": 18, "total_msg_index": 602, "x_time": 1759648824553, "x_msg": 602, "cost": 4165, "duration": "(2m 18s)"}, {"x": 621, "y": 4150383, "message": "ok, from now on start reporting concisely but not in one words , ok ? You have a budget of 6 sentences each turn", "user_msg_index": 19, "total_msg_index": 621, "x_time": 1759649099024, "x_msg": 621, "cost": 0, "duration": "(33s)"}, {"x": 631, "y": 4250505, "message": "'{command:[bash,-lc' stop harcoding this, create a class KNOWN_PARTERNS.BASH_CMD and put it there", "user_msg_index": 20, "total_msg_index": 631, "x_time": 1759649479480, "x_msg": 631, "cost": 1182, "duration": "(1m 18s)"}, {"x": 649, "y": 4553696, "message": "Create a class ToolHandlers with only one static function: handle_known_bash_commands() , Delegate all logic to that fuction (And pass all the relevant variable with nice doc string so I know which one is which). All printing and logic for known bash command will be in there. This delegation must happen AFTER the detection of the known pattern", "user_msg_index": 21, "total_msg_index": 649, "x_time": 1759650436445, "x_msg": 649, "cost": 2298, "duration": "(1m 46s)"}, {"x": 667, "y": 4760713, "message": "add a function to ToolHandler: fall_back. Port the default handling of printing of the \"not known bash\" cases along with all the variables neccessary for implementing the current printing logic there. Also add nice doc string so I know what variable has what value", "user_msg_index": 22, "total_msg_index": 667, "x_time": 1759650750619, "x_msg": 667, "cost": 270, "duration": "(1m 7s)"}, {"x": 681, "y": 4968256, "message": "write a requirement document, detailing what we've been trying to do (and not yet achieved, with this file. Write down that our test command is: \n\n cat /tmp/input.dump | python codex_stream_parser_fsm_v3.py --function-only  --args-sub-delta 8  --delay-ms 10\n\nDetail what the flags mean, why we need it", "user_msg_index": 23, "total_msg_index": 681, "x_time": 1759651466891, "x_msg": 681, "cost": 838, "duration": "(1m 13s)"}, {"x": 694, "y": 5072966, "message": "you have to put it in a .md file, then use the code command to open it for me. Be comprehenseive and thorough", "user_msg_index": 24, "total_msg_index": 694, "x_time": 1759651574565, "x_msg": 694, "cost": 1844, "duration": "(1m 41s)"}, {"x": 717, "y": 5392245, "message": "write a current implementation doc cument to ntoe down our work with codex_stream_parser_fsm_v3.py . What's the file architecture, what data format\n  it expect, and handle. List all states of the state machines, and how we impelemented the detection of the first known command: Bash command. Waht are our next steps. Explain carefully what function does what and the fole of the variables, too. Put all this in a .md document and use the code command to open it for me in VS code", "user_msg_index": 25, "total_msg_index": 717, "x_time": 1759651676403, "x_msg": 717, "cost": 6699, "duration": "(4m 26s)"}, {"x": 753, "y": 5950696, "message": "write a code to extract only function arguments json from --input , default to  ~/AgenticProjects/agent-executors/stream_watch/output/codex/sse_lines.jsonl , and dump to an output file or to sdtout, the file could be pipable or with --hours which will choose only the last x hours latest data-points", "user_msg_index": 26, "total_msg_index": 753, "x_time": 1759653109428, "x_msg": 753, "cost": 2797, "duration": "(2m 41s)"}];
+    const MODEL_CONTEXT_WINDOW = 272000;
+    const INDEX_TO_TS = {"14": "2025-10-05T12:06:09.469Z", "20": "2025-10-05T12:06:10.127Z", "21": "2025-10-05T12:06:23.492Z", "26": "2025-10-05T12:06:24.023Z", "27": "2025-10-05T12:06:26.175Z", "32": "2025-10-05T12:06:26.800Z", "33": "2025-10-05T12:06:29.750Z", "38": "2025-10-05T12:06:30.666Z", "39": "2025-10-05T12:06:33.420Z", "44": "2025-10-05T12:06:34.035Z", "45": "2025-10-05T12:06:48.490Z", "50": "2025-10-05T12:06:50.022Z", "56": "2025-10-05T12:07:16.145Z", "62": "2025-10-05T12:13:10.035Z", "70": "2025-10-05T12:14:09.929Z", "76": "2025-10-05T12:14:11.051Z", "77": "2025-10-05T12:14:13.831Z", "81": "2025-10-05T12:14:15.372Z", "82": "2025-10-05T12:14:25.086Z", "86": "2025-10-05T12:14:26.080Z", "87": "2025-10-05T12:14:31.705Z", "91": "2025-10-05T12:14:32.719Z", "96": "2025-10-05T12:15:16.836Z", "99": "2025-10-05T12:15:30.364Z", "105": "2025-10-05T12:15:31.003Z", "111": "2025-10-05T12:16:16.506Z", "116": "2025-10-05T12:16:17.306Z", "117": "2025-10-05T12:16:19.439Z", "122": "2025-10-05T12:16:20.025Z", "123": "2025-10-05T12:16:21.594Z", "128": "2025-10-05T12:16:22.387Z", "131": "2025-10-05T12:16:30.819Z", "136": "2025-10-05T12:16:31.691Z", "137": "2025-10-05T12:16:33.281Z", "141": "2025-10-05T12:16:33.934Z", "142": "2025-10-05T12:16:35.652Z", "146": "2025-10-05T12:16:36.315Z", "148": "2025-10-05T12:16:40.836Z", "153": "2025-10-05T12:16:41.445Z", "159": "2025-10-05T12:17:02.124Z", "165": "2025-10-05T12:20:39.198Z", "172": "2025-10-05T12:21:46.442Z", "178": "2025-10-05T12:25:06.802Z", "184": "2025-10-05T12:25:26.238Z", "190": "2025-10-05T12:25:26.864Z", "197": "2025-10-05T12:26:56.160Z", "202": "2025-10-05T12:26:56.856Z", "203": "2025-10-05T12:26:59.794Z", "208": "2025-10-05T12:27:00.513Z", "210": "2025-10-05T12:27:04.526Z", "215": "2025-10-05T12:27:05.205Z", "216": "2025-10-05T12:27:07.278Z", "220": "2025-10-05T12:27:08.324Z", "221": "2025-10-05T12:27:17.404Z", "226": "2025-10-05T12:27:18.146Z", "228": "2025-10-05T12:27:35.557Z", "234": "2025-10-05T12:30:03.399Z", "241": "2025-10-05T12:31:02.665Z", "246": "2025-10-05T12:31:03.448Z", "247": "2025-10-05T12:31:04.909Z", "251": "2025-10-05T12:31:06.005Z", "253": "2025-10-05T12:31:11.249Z", "258": "2025-10-05T12:35:19.671Z", "270": "2025-10-05T12:38:28.818Z", "275": "2025-10-05T12:38:29.869Z", "276": "2025-10-05T12:38:31.856Z", "280": "2025-10-05T12:38:32.654Z", "284": "2025-10-05T12:38:50.024Z", "289": "2025-10-05T12:38:51.374Z", "290": "2025-10-05T12:38:53.544Z", "294": "2025-10-05T12:38:54.423Z", "295": "2025-10-05T12:38:59.532Z", "300": "2025-10-05T12:39:00.464Z", "307": "2025-10-05T12:39:23.024Z", "313": "2025-10-05T12:45:15.436Z", "322": "2025-10-05T12:47:50.385Z", "327": "2025-10-05T12:47:51.711Z", "328": "2025-10-05T12:47:58.067Z", "332": "2025-10-05T12:47:58.967Z", "339": "2025-10-05T12:48:29.772Z", "345": "2025-10-05T12:52:29.719Z", "350": "2025-10-05T12:53:33.517Z", "359": "2025-10-05T12:55:37.636Z", "364": "2025-10-05T12:55:39.613Z", "365": "2025-10-05T12:55:44.018Z", "370": "2025-10-05T12:55:51.060Z", "371": "2025-10-05T12:56:11.345Z", "376": "2025-10-05T12:56:14.175Z", "378": "2025-10-05T12:56:42.204Z", "383": "2025-10-05T12:56:44.186Z", "385": "2025-10-05T12:56:55.625Z", "390": "2025-10-05T12:56:57.828Z", "392": "2025-10-05T12:57:23.282Z", "397": "2025-10-05T12:57:25.647Z", "398": "2025-10-05T12:57:29.622Z", "402": "2025-10-05T12:57:31.385Z", "403": "2025-10-05T12:57:37.275Z", "408": "2025-10-05T12:57:39.298Z", "413": "2025-10-05T12:58:05.230Z", "419": "2025-10-05T13:05:18.400Z", "421": "2025-10-05T13:06:56.090Z", "432": "2025-10-05T13:11:31.834Z", "437": "2025-10-05T13:11:33.959Z", "438": "2025-10-05T13:11:37.981Z", "442": "2025-10-05T13:11:40.717Z", "444": "2025-10-05T13:11:49.594Z", "449": "2025-10-05T13:11:51.851Z", "451": "2025-10-05T13:12:03.346Z", "456": "2025-10-05T13:12:05.689Z", "458": "2025-10-05T13:12:10.900Z", "463": "2025-10-05T13:12:12.509Z", "465": "2025-10-05T13:12:38.952Z", "471": "2025-10-05T13:37:40.794Z", "476": "2025-10-05T13:38:33.646Z", "481": "2025-10-05T13:41:25.811Z", "489": "2025-10-05T13:44:49.600Z", "494": "2025-10-05T13:44:53.497Z", "495": "2025-10-05T13:45:00.130Z", "499": "2025-10-05T13:45:04.391Z", "501": "2025-10-05T13:45:17.351Z", "506": "2025-10-05T13:51:49.747Z", "515": "2025-10-05T13:54:48.282Z", "520": "2025-10-05T13:54:59.873Z", "521": "2025-10-05T13:55:08.753Z", "525": "2025-10-05T13:55:12.505Z", "527": "2025-10-05T13:55:21.961Z", "532": "2025-10-05T13:55:32.617Z", "534": "2025-10-05T13:55:58.730Z", "539": "2025-10-05T13:56:02.739Z", "540": "2025-10-05T13:56:09.786Z", "544": "2025-10-05T13:56:13.925Z", "545": "2025-10-05T13:57:00.048Z", "550": "2025-10-05T13:57:03.139Z", "556": "2025-10-05T13:58:06.567Z", "561": "2025-10-05T13:58:10.098Z", "562": "2025-10-05T13:58:13.994Z", "566": "2025-10-05T13:58:17.164Z", "568": "2025-10-05T13:58:38.113Z", "574": "2025-10-05T14:09:27.153Z", "577": "2025-10-05T14:11:03.779Z", "583": "2025-10-05T14:16:16.552Z", "586": "2025-10-05T14:16:30.721Z", "592": "2025-10-05T14:16:37.173Z", "593": "2025-10-05T14:16:43.025Z", "597": "2025-10-05T14:17:14.030Z", "599": "2025-10-05T14:17:16.927Z", "604": "2025-10-05T14:20:30.968Z", "611": "2025-10-05T14:22:29.531Z", "616": "2025-10-05T14:22:39.587Z", "618": "2025-10-05T14:22:43.474Z", "623": "2025-10-05T14:25:15.727Z", "627": "2025-10-05T14:25:32.961Z", "633": "2025-10-05T14:31:35.187Z", "634": "2025-10-05T14:31:59.027Z", "639": "2025-10-05T14:32:09.575Z", "640": "2025-10-05T14:32:22.110Z", "644": "2025-10-05T14:32:32.840Z", "646": "2025-10-05T14:32:38.326Z", "651": "2025-10-05T14:47:22.692Z", "657": "2025-10-05T14:48:34.360Z", "662": "2025-10-05T14:48:53.387Z", "664": "2025-10-05T14:49:02.795Z", "669": "2025-10-05T14:52:37.453Z", "671": "2025-10-05T14:53:25.272Z", "676": "2025-10-05T14:53:32.191Z", "678": "2025-10-05T14:53:38.400Z", "683": "2025-10-05T15:04:32.460Z", "690": "2025-10-05T15:05:40.651Z", "696": "2025-10-05T15:06:19.615Z", "702": "2025-10-05T15:07:31.903Z", "707": "2025-10-05T15:07:36.398Z", "708": "2025-10-05T15:07:43.636Z", "712": "2025-10-05T15:07:50.938Z", "714": "2025-10-05T15:07:56.388Z", "719": "2025-10-05T15:08:02.928Z", "725": "2025-10-05T15:09:11.887Z", "730": "2025-10-05T15:09:19.122Z", "732": "2025-10-05T15:10:17.962Z", "737": "2025-10-05T15:10:57.336Z", "738": "2025-10-05T15:11:56.476Z", "743": "2025-10-05T15:12:04.543Z", "744": "2025-10-05T15:12:10.002Z", "748": "2025-10-05T15:12:16.482Z", "750": "2025-10-05T15:12:23.308Z", "755": "2025-10-05T15:32:00.855Z", "757": "2025-10-05T15:32:28.336Z", "763": "2025-10-05T15:34:03.509Z", "768": "2025-10-05T15:34:23.568Z", "770": "2025-10-05T15:34:31.342Z", "1": "2025-10-05T12:02:34.489Z", "2": "2025-10-05T12:02:51.026Z", "3": "2025-10-05T12:03:07.563Z", "4": "2025-10-05T12:03:24.100Z", "5": "2025-10-05T12:03:40.637Z", "6": "2025-10-05T12:03:57.174Z", "7": "2025-10-05T12:04:13.710Z", "8": "2025-10-05T12:04:30.247Z", "9": "2025-10-05T12:04:46.784Z", "10": "2025-10-05T12:05:03.321Z", "11": "2025-10-05T12:05:19.858Z", "12": "2025-10-05T12:05:36.395Z", "13": "2025-10-05T12:05:52.932Z", "15": "2025-10-05T12:06:26.005Z", "16": "2025-10-05T12:06:42.542Z", "17": "2025-10-05T12:06:59.079Z", "18": "2025-10-05T12:07:15.616Z", "19": "2025-10-05T12:07:32.153Z", "22": "2025-10-05T12:08:21.763Z", "23": "2025-10-05T12:08:38.300Z", "24": "2025-10-05T12:08:54.837Z", "25": "2025-10-05T12:09:11.374Z", "28": "2025-10-05T12:10:00.985Z", "29": "2025-10-05T12:10:17.522Z", "30": "2025-10-05T12:10:34.058Z", "31": "2025-10-05T12:10:50.595Z", "34": "2025-10-05T12:11:40.206Z", "35": "2025-10-05T12:11:56.743Z", "36": "2025-10-05T12:12:13.280Z", "37": "2025-10-05T12:12:29.816Z", "40": "2025-10-05T12:13:19.427Z", "41": "2025-10-05T12:13:35.964Z", "42": "2025-10-05T12:13:52.501Z", "43": "2025-10-05T12:14:09.038Z", "46": "2025-10-05T12:14:58.648Z", "47": "2025-10-05T12:15:15.185Z", "48": "2025-10-05T12:15:31.722Z", "49": "2025-10-05T12:15:48.259Z", "51": "2025-10-05T12:16:21.333Z", "52": "2025-10-05T12:16:37.870Z", "53": "2025-10-05T12:16:54.406Z", "54": "2025-10-05T12:17:10.943Z", "55": "2025-10-05T12:17:27.480Z", "57": "2025-10-05T12:18:00.554Z", "58": "2025-10-05T12:18:17.091Z", "59": "2025-10-05T12:18:33.628Z", "60": "2025-10-05T12:18:50.164Z", "61": "2025-10-05T12:19:06.701Z", "63": "2025-10-05T12:19:39.775Z", "64": "2025-10-05T12:19:56.312Z", "65": "2025-10-05T12:20:12.849Z", "66": "2025-10-05T12:20:29.386Z", "67": "2025-10-05T12:20:45.923Z", "68": "2025-10-05T12:21:02.459Z", "69": "2025-10-05T12:21:18.996Z", "71": "2025-10-05T12:21:52.070Z", "72": "2025-10-05T12:22:08.607Z", "73": "2025-10-05T12:22:25.144Z", "74": "2025-10-05T12:22:41.681Z", "75": "2025-10-05T12:22:58.218Z", "78": "2025-10-05T12:23:47.828Z", "79": "2025-10-05T12:24:04.365Z", "80": "2025-10-05T12:24:20.902Z", "83": "2025-10-05T12:25:10.512Z", "84": "2025-10-05T12:25:27.049Z", "85": "2025-10-05T12:25:43.586Z", "88": "2025-10-05T12:26:33.197Z", "89": "2025-10-05T12:26:49.734Z", "90": "2025-10-05T12:27:06.271Z", "92": "2025-10-05T12:27:39.344Z", "93": "2025-10-05T12:27:55.881Z", "94": "2025-10-05T12:28:12.418Z", "95": "2025-10-05T12:28:28.955Z", "97": "2025-10-05T12:29:02.029Z", "98": "2025-10-05T12:29:18.566Z", "100": "2025-10-05T12:29:51.639Z", "101": "2025-10-05T12:30:08.176Z", "102": "2025-10-05T12:30:24.713Z", "103": "2025-10-05T12:30:41.250Z", "104": "2025-10-05T12:30:57.787Z", "106": "2025-10-05T12:31:30.860Z", "107": "2025-10-05T12:31:47.397Z", "108": "2025-10-05T12:32:03.934Z", "109": "2025-10-05T12:32:20.471Z", "110": "2025-10-05T12:32:37.008Z", "112": "2025-10-05T12:33:10.082Z", "113": "2025-10-05T12:33:26.619Z", "114": "2025-10-05T12:33:43.155Z", "115": "2025-10-05T12:33:59.692Z", "118": "2025-10-05T12:34:49.303Z", "119": "2025-10-05T12:35:05.840Z", "120": "2025-10-05T12:35:22.377Z", "121": "2025-10-05T12:35:38.913Z", "124": "2025-10-05T12:36:28.524Z", "125": "2025-10-05T12:36:45.061Z", "126": "2025-10-05T12:37:01.598Z", "127": "2025-10-05T12:37:18.135Z", "129": "2025-10-05T12:37:51.208Z", "130": "2025-10-05T12:38:07.745Z", "132": "2025-10-05T12:38:40.819Z", "133": "2025-10-05T12:38:57.356Z", "134": "2025-10-05T12:39:13.893Z", "135": "2025-10-05T12:39:30.430Z", "138": "2025-10-05T12:40:20.040Z", "139": "2025-10-05T12:40:36.577Z", "140": "2025-10-05T12:40:53.114Z", "143": "2025-10-05T12:41:42.725Z", "144": "2025-10-05T12:41:59.261Z", "145": "2025-10-05T12:42:15.798Z", "147": "2025-10-05T12:42:48.872Z", "149": "2025-10-05T12:43:21.946Z", "150": "2025-10-05T12:43:38.483Z", "151": "2025-10-05T12:43:55.020Z", "152": "2025-10-05T12:44:11.556Z", "154": "2025-10-05T12:44:44.630Z", "155": "2025-10-05T12:45:01.167Z", "156": "2025-10-05T12:45:17.704Z", "157": "2025-10-05T12:45:34.241Z", "158": "2025-10-05T12:45:50.778Z", "160": "2025-10-05T12:46:23.851Z", "161": "2025-10-05T12:46:40.388Z", "162": "2025-10-05T12:46:56.925Z", "163": "2025-10-05T12:47:13.462Z", "164": "2025-10-05T12:47:29.999Z", "166": "2025-10-05T12:48:03.073Z", "167": "2025-10-05T12:48:19.609Z", "168": "2025-10-05T12:48:36.146Z", "169": "2025-10-05T12:48:52.683Z", "170": "2025-10-05T12:49:09.220Z", "171": "2025-10-05T12:49:25.757Z", "173": "2025-10-05T12:49:58.831Z", "174": "2025-10-05T12:50:15.368Z", "175": "2025-10-05T12:50:31.904Z", "176": "2025-10-05T12:50:48.441Z", "177": "2025-10-05T12:51:04.978Z", "179": "2025-10-05T12:51:38.052Z", "180": "2025-10-05T12:51:54.589Z", "181": "2025-10-05T12:52:11.126Z", "182": "2025-10-05T12:52:27.663Z", "183": "2025-10-05T12:52:44.199Z", "185": "2025-10-05T12:53:17.273Z", "186": "2025-10-05T12:53:33.810Z", "187": "2025-10-05T12:53:50.347Z", "188": "2025-10-05T12:54:06.884Z", "189": "2025-10-05T12:54:23.421Z", "191": "2025-10-05T12:54:56.494Z", "192": "2025-10-05T12:55:13.031Z", "193": "2025-10-05T12:55:29.568Z", "194": "2025-10-05T12:55:46.105Z", "195": "2025-10-05T12:56:02.642Z", "196": "2025-10-05T12:56:19.179Z", "198": "2025-10-05T12:56:52.252Z", "199": "2025-10-05T12:57:08.789Z", "200": "2025-10-05T12:57:25.326Z", "201": "2025-10-05T12:57:41.863Z", "204": "2025-10-05T12:58:31.474Z", "205": "2025-10-05T12:58:48.010Z", "206": "2025-10-05T12:59:04.547Z", "207": "2025-10-05T12:59:21.084Z", "209": "2025-10-05T12:59:54.158Z", "211": "2025-10-05T13:00:27.232Z", "212": "2025-10-05T13:00:43.769Z", "213": "2025-10-05T13:01:00.305Z", "214": "2025-10-05T13:01:16.842Z", "217": "2025-10-05T13:02:06.453Z", "218": "2025-10-05T13:02:22.990Z", "219": "2025-10-05T13:02:39.527Z", "222": "2025-10-05T13:03:29.137Z", "223": "2025-10-05T13:03:45.674Z", "224": "2025-10-05T13:04:02.211Z", "225": "2025-10-05T13:04:18.748Z", "227": "2025-10-05T13:04:51.822Z", "229": "2025-10-05T13:05:24.895Z", "230": "2025-10-05T13:05:41.432Z", "231": "2025-10-05T13:05:57.969Z", "232": "2025-10-05T13:06:14.506Z", "233": "2025-10-05T13:06:31.043Z", "235": "2025-10-05T13:07:04.117Z", "236": "2025-10-05T13:07:20.653Z", "237": "2025-10-05T13:07:37.190Z", "238": "2025-10-05T13:07:53.727Z", "239": "2025-10-05T13:08:10.264Z", "240": "2025-10-05T13:08:26.801Z", "242": "2025-10-05T13:08:59.875Z", "243": "2025-10-05T13:09:16.412Z", "244": "2025-10-05T13:09:32.948Z", "245": "2025-10-05T13:09:49.485Z", "248": "2025-10-05T13:10:39.096Z", "249": "2025-10-05T13:10:55.633Z", "250": "2025-10-05T13:11:12.170Z", "252": "2025-10-05T13:11:45.243Z", "254": "2025-10-05T13:12:18.317Z", "255": "2025-10-05T13:12:34.854Z", "256": "2025-10-05T13:12:51.391Z", "257": "2025-10-05T13:13:07.928Z", "259": "2025-10-05T13:13:41.001Z", "260": "2025-10-05T13:13:57.538Z", "261": "2025-10-05T13:14:14.075Z", "262": "2025-10-05T13:14:30.612Z", "263": "2025-10-05T13:14:47.149Z", "264": "2025-10-05T13:15:03.686Z", "265": "2025-10-05T13:15:20.223Z", "266": "2025-10-05T13:15:36.760Z", "267": "2025-10-05T13:15:53.296Z", "268": "2025-10-05T13:16:09.833Z", "269": "2025-10-05T13:16:26.370Z", "271": "2025-10-05T13:16:59.444Z", "272": "2025-10-05T13:17:15.981Z", "273": "2025-10-05T13:17:32.518Z", "274": "2025-10-05T13:17:49.054Z", "277": "2025-10-05T13:18:38.665Z", "278": "2025-10-05T13:18:55.202Z", "279": "2025-10-05T13:19:11.739Z", "281": "2025-10-05T13:19:44.813Z", "282": "2025-10-05T13:20:01.349Z", "283": "2025-10-05T13:20:17.886Z", "285": "2025-10-05T13:20:50.960Z", "286": "2025-10-05T13:21:07.497Z", "287": "2025-10-05T13:21:24.034Z", "288": "2025-10-05T13:21:40.571Z", "291": "2025-10-05T13:22:30.181Z", "292": "2025-10-05T13:22:46.718Z", "293": "2025-10-05T13:23:03.255Z", "296": "2025-10-05T13:23:52.866Z", "297": "2025-10-05T13:24:09.402Z", "298": "2025-10-05T13:24:25.939Z", "299": "2025-10-05T13:24:42.476Z", "301": "2025-10-05T13:25:15.550Z", "302": "2025-10-05T13:25:32.087Z", "303": "2025-10-05T13:25:48.624Z", "304": "2025-10-05T13:26:05.161Z", "305": "2025-10-05T13:26:21.697Z", "306": "2025-10-05T13:26:38.234Z", "308": "2025-10-05T13:27:11.308Z", "309": "2025-10-05T13:27:27.845Z", "310": "2025-10-05T13:27:44.382Z", "311": "2025-10-05T13:28:00.919Z", "312": "2025-10-05T13:28:17.455Z", "314": "2025-10-05T13:28:50.529Z", "315": "2025-10-05T13:29:07.066Z", "316": "2025-10-05T13:29:23.603Z", "317": "2025-10-05T13:29:40.140Z", "318": "2025-10-05T13:29:56.677Z", "319": "2025-10-05T13:30:13.214Z", "320": "2025-10-05T13:30:29.750Z", "321": "2025-10-05T13:30:46.287Z", "323": "2025-10-05T13:31:19.361Z", "324": "2025-10-05T13:31:35.898Z", "325": "2025-10-05T13:31:52.435Z", "326": "2025-10-05T13:32:08.972Z", "329": "2025-10-05T13:32:58.582Z", "330": "2025-10-05T13:33:15.119Z", "331": "2025-10-05T13:33:31.656Z", "333": "2025-10-05T13:34:04.730Z", "334": "2025-10-05T13:34:21.267Z", "335": "2025-10-05T13:34:37.803Z", "336": "2025-10-05T13:34:54.340Z", "337": "2025-10-05T13:35:10.877Z", "338": "2025-10-05T13:35:27.414Z", "340": "2025-10-05T13:36:00.488Z", "341": "2025-10-05T13:36:17.025Z", "342": "2025-10-05T13:36:33.562Z", "343": "2025-10-05T13:36:50.098Z", "344": "2025-10-05T13:37:06.635Z", "346": "2025-10-05T13:37:39.709Z", "347": "2025-10-05T13:37:56.246Z", "348": "2025-10-05T13:38:12.783Z", "349": "2025-10-05T13:38:29.320Z", "351": "2025-10-05T13:39:02.393Z", "352": "2025-10-05T13:39:18.930Z", "353": "2025-10-05T13:39:35.467Z", "354": "2025-10-05T13:39:52.004Z", "355": "2025-10-05T13:40:08.541Z", "356": "2025-10-05T13:40:25.078Z", "357": "2025-10-05T13:40:41.615Z", "358": "2025-10-05T13:40:58.151Z", "360": "2025-10-05T13:41:31.225Z", "361": "2025-10-05T13:41:47.762Z", "362": "2025-10-05T13:42:04.299Z", "363": "2025-10-05T13:42:20.836Z", "366": "2025-10-05T13:43:10.446Z", "367": "2025-10-05T13:43:26.983Z", "368": "2025-10-05T13:43:43.520Z", "369": "2025-10-05T13:44:00.057Z", "372": "2025-10-05T13:44:49.668Z", "373": "2025-10-05T13:45:06.204Z", "374": "2025-10-05T13:45:22.741Z", "375": "2025-10-05T13:45:39.278Z", "377": "2025-10-05T13:46:12.352Z", "379": "2025-10-05T13:46:45.426Z", "380": "2025-10-05T13:47:01.963Z", "381": "2025-10-05T13:47:18.499Z", "382": "2025-10-05T13:47:35.036Z", "384": "2025-10-05T13:48:08.110Z", "386": "2025-10-05T13:48:41.184Z", "387": "2025-10-05T13:48:57.721Z", "388": "2025-10-05T13:49:14.258Z", "389": "2025-10-05T13:49:30.794Z", "391": "2025-10-05T13:50:03.868Z", "393": "2025-10-05T13:50:36.942Z", "394": "2025-10-05T13:50:53.479Z", "395": "2025-10-05T13:51:10.016Z", "396": "2025-10-05T13:51:26.552Z", "399": "2025-10-05T13:52:16.163Z", "400": "2025-10-05T13:52:32.700Z", "401": "2025-10-05T13:52:49.237Z", "404": "2025-10-05T13:53:38.847Z", "405": "2025-10-05T13:53:55.384Z", "406": "2025-10-05T13:54:11.921Z", "407": "2025-10-05T13:54:28.458Z", "409": "2025-10-05T13:55:01.532Z", "410": "2025-10-05T13:55:18.069Z", "411": "2025-10-05T13:55:34.606Z", "412": "2025-10-05T13:55:51.142Z", "414": "2025-10-05T13:56:24.216Z", "415": "2025-10-05T13:56:40.753Z", "416": "2025-10-05T13:56:57.290Z", "417": "2025-10-05T13:57:13.827Z", "418": "2025-10-05T13:57:30.364Z", "420": "2025-10-05T13:58:03.437Z", "422": "2025-10-05T13:58:36.511Z", "423": "2025-10-05T13:58:53.048Z", "424": "2025-10-05T13:59:09.585Z", "425": "2025-10-05T13:59:26.122Z", "426": "2025-10-05T13:59:42.659Z", "427": "2025-10-05T13:59:59.195Z", "428": "2025-10-05T14:00:15.732Z", "429": "2025-10-05T14:00:32.269Z", "430": "2025-10-05T14:00:48.806Z", "431": "2025-10-05T14:01:05.343Z", "433": "2025-10-05T14:01:38.417Z", "434": "2025-10-05T14:01:54.954Z", "435": "2025-10-05T14:02:11.490Z", "436": "2025-10-05T14:02:28.027Z", "439": "2025-10-05T14:03:17.638Z", "440": "2025-10-05T14:03:34.175Z", "441": "2025-10-05T14:03:50.712Z", "443": "2025-10-05T14:04:23.785Z", "445": "2025-10-05T14:04:56.859Z", "446": "2025-10-05T14:05:13.396Z", "447": "2025-10-05T14:05:29.933Z", "448": "2025-10-05T14:05:46.470Z", "450": "2025-10-05T14:06:19.543Z", "452": "2025-10-05T14:06:52.617Z", "453": "2025-10-05T14:07:09.154Z", "454": "2025-10-05T14:07:25.691Z", "455": "2025-10-05T14:07:42.228Z", "457": "2025-10-05T14:08:15.301Z", "459": "2025-10-05T14:08:48.375Z", "460": "2025-10-05T14:09:04.912Z", "461": "2025-10-05T14:09:21.449Z", "462": "2025-10-05T14:09:37.986Z", "464": "2025-10-05T14:10:11.060Z", "466": "2025-10-05T14:10:44.133Z", "467": "2025-10-05T14:11:00.670Z", "468": "2025-10-05T14:11:17.207Z", "469": "2025-10-05T14:11:33.744Z", "470": "2025-10-05T14:11:50.281Z", "472": "2025-10-05T14:12:23.355Z", "473": "2025-10-05T14:12:39.891Z", "474": "2025-10-05T14:12:56.428Z", "475": "2025-10-05T14:13:12.965Z", "477": "2025-10-05T14:13:46.039Z", "478": "2025-10-05T14:14:02.576Z", "479": "2025-10-05T14:14:19.113Z", "480": "2025-10-05T14:14:35.649Z", "482": "2025-10-05T14:15:08.723Z", "483": "2025-10-05T14:15:25.260Z", "484": "2025-10-05T14:15:41.797Z", "485": "2025-10-05T14:15:58.334Z", "486": "2025-10-05T14:16:14.871Z", "487": "2025-10-05T14:16:31.408Z", "488": "2025-10-05T14:16:47.944Z", "490": "2025-10-05T14:17:21.018Z", "491": "2025-10-05T14:17:37.555Z", "492": "2025-10-05T14:17:54.092Z", "493": "2025-10-05T14:18:10.629Z", "496": "2025-10-05T14:19:00.239Z", "497": "2025-10-05T14:19:16.776Z", "498": "2025-10-05T14:19:33.313Z", "500": "2025-10-05T14:20:06.387Z", "502": "2025-10-05T14:20:39.461Z", "503": "2025-10-05T14:20:55.997Z", "504": "2025-10-05T14:21:12.534Z", "505": "2025-10-05T14:21:29.071Z", "507": "2025-10-05T14:22:02.145Z", "508": "2025-10-05T14:22:18.682Z", "509": "2025-10-05T14:22:35.219Z", "510": "2025-10-05T14:22:51.756Z", "511": "2025-10-05T14:23:08.292Z", "512": "2025-10-05T14:23:24.829Z", "513": "2025-10-05T14:23:41.366Z", "514": "2025-10-05T14:23:57.903Z", "516": "2025-10-05T14:24:30.977Z", "517": "2025-10-05T14:24:47.514Z", "518": "2025-10-05T14:25:04.051Z", "519": "2025-10-05T14:25:20.587Z", "522": "2025-10-05T14:26:10.198Z", "523": "2025-10-05T14:26:26.735Z", "524": "2025-10-05T14:26:43.272Z", "526": "2025-10-05T14:27:16.345Z", "528": "2025-10-05T14:27:49.419Z", "529": "2025-10-05T14:28:05.956Z", "530": "2025-10-05T14:28:22.493Z", "531": "2025-10-05T14:28:39.030Z", "533": "2025-10-05T14:29:12.104Z", "535": "2025-10-05T14:29:45.177Z", "536": "2025-10-05T14:30:01.714Z", "537": "2025-10-05T14:30:18.251Z", "538": "2025-10-05T14:30:34.788Z", "541": "2025-10-05T14:31:24.398Z", "542": "2025-10-05T14:31:40.935Z", "543": "2025-10-05T14:31:57.472Z", "546": "2025-10-05T14:32:47.083Z", "547": "2025-10-05T14:33:03.620Z", "548": "2025-10-05T14:33:20.157Z", "549": "2025-10-05T14:33:36.693Z", "551": "2025-10-05T14:34:09.767Z", "552": "2025-10-05T14:34:26.304Z", "553": "2025-10-05T14:34:42.841Z", "554": "2025-10-05T14:34:59.378Z", "555": "2025-10-05T14:35:15.915Z", "557": "2025-10-05T14:35:48.988Z", "558": "2025-10-05T14:36:05.525Z", "559": "2025-10-05T14:36:22.062Z", "560": "2025-10-05T14:36:38.599Z", "563": "2025-10-05T14:37:28.210Z", "564": "2025-10-05T14:37:44.746Z", "565": "2025-10-05T14:38:01.283Z", "567": "2025-10-05T14:38:34.357Z", "569": "2025-10-05T14:39:07.431Z", "570": "2025-10-05T14:39:23.968Z", "571": "2025-10-05T14:39:40.505Z", "572": "2025-10-05T14:39:57.041Z", "573": "2025-10-05T14:40:13.578Z", "575": "2025-10-05T14:40:46.652Z", "576": "2025-10-05T14:41:03.189Z", "578": "2025-10-05T14:41:36.263Z", "579": "2025-10-05T14:41:52.800Z", "580": "2025-10-05T14:42:09.336Z", "581": "2025-10-05T14:42:25.873Z", "582": "2025-10-05T14:42:42.410Z", "584": "2025-10-05T14:43:15.484Z", "585": "2025-10-05T14:43:32.021Z", "587": "2025-10-05T14:44:05.094Z", "588": "2025-10-05T14:44:21.631Z", "589": "2025-10-05T14:44:38.168Z", "590": "2025-10-05T14:44:54.705Z", "591": "2025-10-05T14:45:11.242Z", "594": "2025-10-05T14:46:00.853Z", "595": "2025-10-05T14:46:17.389Z", "596": "2025-10-05T14:46:33.926Z", "598": "2025-10-05T14:47:07.000Z", "600": "2025-10-05T14:47:40.074Z", "601": "2025-10-05T14:47:56.611Z", "602": "2025-10-05T14:48:13.148Z", "603": "2025-10-05T14:48:29.684Z", "605": "2025-10-05T14:49:02.758Z", "606": "2025-10-05T14:49:19.295Z", "607": "2025-10-05T14:49:35.832Z", "608": "2025-10-05T14:49:52.369Z", "609": "2025-10-05T14:50:08.906Z", "610": "2025-10-05T14:50:25.442Z", "612": "2025-10-05T14:50:58.516Z", "613": "2025-10-05T14:51:15.053Z", "614": "2025-10-05T14:51:31.590Z", "615": "2025-10-05T14:51:48.127Z", "617": "2025-10-05T14:52:21.201Z", "619": "2025-10-05T14:52:54.274Z", "620": "2025-10-05T14:53:10.811Z", "621": "2025-10-05T14:53:27.348Z", "622": "2025-10-05T14:53:43.885Z", "624": "2025-10-05T14:54:16.959Z", "625": "2025-10-05T14:54:33.495Z", "626": "2025-10-05T14:54:50.032Z", "628": "2025-10-05T14:55:23.106Z", "629": "2025-10-05T14:55:39.643Z", "630": "2025-10-05T14:55:56.180Z", "631": "2025-10-05T14:56:12.717Z", "632": "2025-10-05T14:56:29.254Z", "635": "2025-10-05T14:57:18.864Z", "636": "2025-10-05T14:57:35.401Z", "637": "2025-10-05T14:57:51.938Z", "638": "2025-10-05T14:58:08.475Z", "641": "2025-10-05T14:58:58.085Z", "642": "2025-10-05T14:59:14.622Z", "643": "2025-10-05T14:59:31.159Z", "645": "2025-10-05T15:00:04.233Z", "647": "2025-10-05T15:00:37.307Z", "648": "2025-10-05T15:00:53.843Z", "649": "2025-10-05T15:01:10.380Z", "650": "2025-10-05T15:01:26.917Z", "652": "2025-10-05T15:01:59.991Z", "653": "2025-10-05T15:02:16.528Z", "654": "2025-10-05T15:02:33.065Z", "655": "2025-10-05T15:02:49.602Z", "656": "2025-10-05T15:03:06.138Z", "658": "2025-10-05T15:03:39.212Z", "659": "2025-10-05T15:03:55.749Z", "660": "2025-10-05T15:04:12.286Z", "661": "2025-10-05T15:04:28.823Z", "663": "2025-10-05T15:05:01.897Z", "665": "2025-10-05T15:05:34.970Z", "666": "2025-10-05T15:05:51.507Z", "667": "2025-10-05T15:06:08.044Z", "668": "2025-10-05T15:06:24.581Z", "670": "2025-10-05T15:06:57.655Z", "672": "2025-10-05T15:07:30.728Z", "673": "2025-10-05T15:07:47.265Z", "674": "2025-10-05T15:08:03.802Z", "675": "2025-10-05T15:08:20.339Z", "677": "2025-10-05T15:08:53.413Z", "679": "2025-10-05T15:09:26.486Z", "680": "2025-10-05T15:09:43.023Z", "681": "2025-10-05T15:09:59.560Z", "682": "2025-10-05T15:10:16.097Z", "684": "2025-10-05T15:10:49.171Z", "685": "2025-10-05T15:11:05.708Z", "686": "2025-10-05T15:11:22.245Z", "687": "2025-10-05T15:11:38.781Z", "688": "2025-10-05T15:11:55.318Z", "689": "2025-10-05T15:12:11.855Z", "691": "2025-10-05T15:12:44.929Z", "692": "2025-10-05T15:13:01.466Z", "693": "2025-10-05T15:13:18.003Z", "694": "2025-10-05T15:13:34.539Z", "695": "2025-10-05T15:13:51.076Z", "697": "2025-10-05T15:14:24.150Z", "698": "2025-10-05T15:14:40.687Z", "699": "2025-10-05T15:14:57.224Z", "700": "2025-10-05T15:15:13.761Z", "701": "2025-10-05T15:15:30.298Z", "703": "2025-10-05T15:16:03.371Z", "704": "2025-10-05T15:16:19.908Z", "705": "2025-10-05T15:16:36.445Z", "706": "2025-10-05T15:16:52.982Z", "709": "2025-10-05T15:17:42.592Z", "710": "2025-10-05T15:17:59.129Z", "711": "2025-10-05T15:18:15.666Z", "713": "2025-10-05T15:18:48.740Z", "715": "2025-10-05T15:19:21.814Z", "716": "2025-10-05T15:19:38.351Z", "717": "2025-10-05T15:19:54.887Z", "718": "2025-10-05T15:20:11.424Z", "720": "2025-10-05T15:20:44.498Z", "721": "2025-10-05T15:21:01.035Z", "722": "2025-10-05T15:21:17.572Z", "723": "2025-10-05T15:21:34.109Z", "724": "2025-10-05T15:21:50.646Z", "726": "2025-10-05T15:22:23.719Z", "727": "2025-10-05T15:22:40.256Z", "728": "2025-10-05T15:22:56.793Z", "729": "2025-10-05T15:23:13.330Z", "731": "2025-10-05T15:23:46.404Z", "733": "2025-10-05T15:24:19.477Z", "734": "2025-10-05T15:24:36.014Z", "735": "2025-10-05T15:24:52.551Z", "736": "2025-10-05T15:25:09.088Z", "739": "2025-10-05T15:25:58.699Z", "740": "2025-10-05T15:26:15.235Z", "741": "2025-10-05T15:26:31.772Z", "742": "2025-10-05T15:26:48.309Z", "745": "2025-10-05T15:27:37.920Z", "746": "2025-10-05T15:27:54.457Z", "747": "2025-10-05T15:28:10.994Z", "749": "2025-10-05T15:28:44.067Z", "751": "2025-10-05T15:29:17.141Z", "752": "2025-10-05T15:29:33.678Z", "753": "2025-10-05T15:29:50.215Z", "754": "2025-10-05T15:30:06.752Z", "756": "2025-10-05T15:30:39.825Z", "758": "2025-10-05T15:31:12.899Z", "759": "2025-10-05T15:31:29.436Z", "760": "2025-10-05T15:31:45.973Z", "761": "2025-10-05T15:32:02.510Z", "762": "2025-10-05T15:32:19.047Z", "764": "2025-10-05T15:32:52.120Z", "765": "2025-10-05T15:33:08.657Z", "766": "2025-10-05T15:33:25.194Z", "767": "2025-10-05T15:33:41.731Z", "769": "2025-10-05T15:34:14.805Z", "771": "2025-10-05T15:34:47.878Z"};
+
+    // Current mode
+    let MESSAGE_BASED_X = true;
+
+    // Helper function to wrap text at a given character limit
+    function wrapText(text, maxWidth) {
+      const words = text.split(' ');
+      const lines = [];
+      let currentLine = '';
+
+      for (let word of words) {
+        const testLine = currentLine ? currentLine + ' ' + word : word;
+        if (testLine.length > maxWidth && currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      }
+
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+
+      return lines;
+    }
+
+    // Helper to format timestamp from ISO string
+    function formatTime(isoString) {
+      const date = new Date(isoString);
+      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+    }
+
+    // X-axis config generator
+    function getXAxisConfig(isMessageBased) {
+      if (isMessageBased) {
+        return {
+          type: 'linear',
+          title: {
+            display: true,
+            text: 'Time (message-based spacing)',
+            color: '#9ca3af',
+            font: { size: 14 }
+          },
+          ticks: {
+            color: '#9ca3af',
+            maxTicksLimit: 20,
+            autoSkip: true,
+            callback: function(value) {
+              const idx = Math.round(value);
+              const ts = INDEX_TO_TS[idx];
+              if (ts) {
+                return formatTime(ts);
+              }
+              return '';
+            }
+          },
+          grid: { color: 'rgba(156,163,175,0.1)' }
+        };
+      } else {
+        return {
+          type: 'time',
+          time: {
+            unit: 'minute',
+            displayFormats: {
+              minute: 'HH:mm',
+              hour: 'HH:mm'
+            }
+          },
+          title: {
+            display: true,
+            text: 'Time',
+            color: '#9ca3af',
+            font: { size: 14 }
+          },
+          ticks: { color: '#9ca3af' },
+          grid: { color: 'rgba(156,163,175,0.1)' }
+        };
+      }
+    }
+
+    // Chart 1: Context Window Over Time
+    const ctxContext = document.getElementById('contextChart').getContext('2d');
+    const contextChart = new Chart(ctxContext, {
+      type: 'line',
+      data: {
+        datasets: [
+          {
+            label: 'Context Window Tokens',
+            data: MESSAGE_BASED_X ? CONTEXT_MSG_DATA : CONTEXT_TIME_DATA,
+            parsing: false,
+            borderColor: '#60a5fa',
+            backgroundColor: 'rgba(96,165,250,0.15)',
+            tension: 0.3,
+            pointRadius: 0,
+            pointHoverRadius: 0,
+            borderWidth: 2,
+            fill: true,
+            order: 2
+          },
+          {
+            label: 'User Messages',
+            data: USER_MESSAGES_CONTEXT,
+            parsing: false,
+            type: 'scatter',
+            backgroundColor: '#fbbf24',
+            borderColor: '#f59e0b',
+            borderWidth: 2,
+            pointRadius: 8,
+            pointHoverRadius: 10,
+            pointStyle: 'star',
+            rotation: 0,
+            order: 1
+          },
+          {
+            label: 'Model Context Window Limit',
+            data: (function() {
+              const data = MESSAGE_BASED_X ? CONTEXT_MSG_DATA : CONTEXT_TIME_DATA;
+              return [
+                { x: data[0].x, y: MODEL_CONTEXT_WINDOW },
+                { x: data[data.length - 1].x, y: MODEL_CONTEXT_WINDOW }
+              ];
+            })(),
+            parsing: false,
+            borderColor: '#ef4444',
+            borderWidth: 2,
+            borderDash: [10, 5],
+            pointRadius: 0,
+            fill: false,
+            order: 3
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        onClick: (event, elements) => {
+          if (elements.length > 0 && elements[0].datasetIndex === 1) {
+            const dataPoint = elements[0];
+            const data = USER_MESSAGES_CONTEXT[dataPoint.index];
+            const userMsgIdx = data.user_msg_index;
+            const card = document.querySelector('.message-card[data-index="' + userMsgIdx + '"]');
+            if (card) {
+              card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              setTimeout(() => highlightMessage(card), 300);
+            }
+          }
+        },
+        interaction: {
+          mode: 'nearest',
+          intersect: true
+        },
+        scales: {
+          x: getXAxisConfig(MESSAGE_BASED_X),
+          y: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: 'Tokens',
+              color: '#9ca3af',
+              font: { size: 14 }
+            },
+            ticks: {
+              color: '#9ca3af',
+              callback: function(value) {
+                return value.toLocaleString();
+              }
+            },
+            grid: { color: 'rgba(156,163,175,0.1)' }
+          }
+        },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: { color: '#e5e7eb', padding: 10, font: { size: 11 } }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(20,24,45,0.95)',
+            titleColor: '#e5e7eb',
+            bodyColor: '#e5e7eb',
+            borderColor: '#60a5fa',
+            borderWidth: 1,
+            padding: 12,
+            displayColors: false,
+            callbacks: {
+              title: function(context) {
+                if (context[0].dataset.label === 'User Messages') {
+                  const raw = context[0].raw;
+                  const userIdx = raw.user_msg_index || 0;
+                  const totalIdx = raw.total_msg_index || 0;
+                  const padding = '                    ';
+                  return '👤 User Message (#' + userIdx + ')' + padding + 'message #' + totalIdx;
+                }
+                return context[0].label;
+              },
+              label: function(context) {
+                if (context.dataset.label === 'User Messages') {
+                  const msg = context.raw.message || '';
+                  const cost = context.raw.cost || 0;
+                  const wrapped = wrapText(msg, 60);
+                  wrapped.push('', 'Cost: ' + cost.toLocaleString() + ' tokens');
+                  return wrapped;
+                } else if (context.dataset.label === 'Context Window Tokens') {
+                  const value = context.parsed.y;
+                  const percent = ((value / MODEL_CONTEXT_WINDOW) * 100).toFixed(2);
+                  return context.dataset.label + ': ' + value.toLocaleString() + ' (' + percent + '%)';
+                } else {
+                  return context.dataset.label + ': ' + context.parsed.y.toLocaleString();
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Chart 2: Cumulative Total Tokens
+    const ctxCumulative = document.getElementById('cumulativeChart').getContext('2d');
+    const cumulativeChart = new Chart(ctxCumulative, {
+      type: 'line',
+      data: {
+        datasets: [
+          {
+            label: 'Cumulative Total Tokens',
+            data: MESSAGE_BASED_X ? CUMULATIVE_MSG_DATA : CUMULATIVE_TIME_DATA,
+            parsing: false,
+            borderColor: '#8b5cf6',
+            backgroundColor: 'rgba(139,92,246,0.15)',
+            tension: 0.3,
+            pointRadius: 0,
+            pointHoverRadius: 0,
+            borderWidth: 2,
+            fill: true,
+            order: 2
+          },
+          {
+            label: 'User Messages',
+            data: USER_MESSAGES_CUMULATIVE,
+            parsing: false,
+            type: 'scatter',
+            backgroundColor: '#fbbf24',
+            borderColor: '#f59e0b',
+            borderWidth: 2,
+            pointRadius: 8,
+            pointHoverRadius: 10,
+            pointStyle: 'star',
+            rotation: 0,
+            order: 1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        onClick: (event, elements) => {
+          if (elements.length > 0 && elements[0].datasetIndex === 1) {
+            const dataPoint = elements[0];
+            const data = USER_MESSAGES_CUMULATIVE[dataPoint.index];
+            const userMsgIdx = data.user_msg_index;
+            const card = document.querySelector('.message-card[data-index="' + userMsgIdx + '"]');
+            if (card) {
+              card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              setTimeout(() => highlightMessage(card), 300);
+            }
+          }
+        },
+        interaction: {
+          mode: 'nearest',
+          intersect: true
+        },
+        scales: {
+          x: getXAxisConfig(MESSAGE_BASED_X),
+          y: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: 'Total Tokens',
+              color: '#9ca3af',
+              font: { size: 14 }
+            },
+            ticks: {
+              color: '#9ca3af',
+              callback: function(value) {
+                return value.toLocaleString();
+              }
+            },
+            grid: { color: 'rgba(156,163,175,0.1)' }
+          }
+        },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: { color: '#e5e7eb', padding: 10, font: { size: 11 } }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(20,24,45,0.95)',
+            titleColor: '#e5e7eb',
+            bodyColor: '#e5e7eb',
+            borderColor: '#8b5cf6',
+            borderWidth: 1,
+            padding: 12,
+            displayColors: false,
+            callbacks: {
+              title: function(context) {
+                if (context[0].dataset.label === 'User Messages') {
+                  const raw = context[0].raw;
+                  const userIdx = raw.user_msg_index || 0;
+                  const totalIdx = raw.total_msg_index || 0;
+                  const padding = '                    ';
+                  return '👤 User Message (#' + userIdx + ')' + padding + 'message #' + totalIdx;
+                }
+                return context[0].label;
+              },
+              label: function(context) {
+                if (context.dataset.label === 'User Messages') {
+                  const msg = context.raw.message || '';
+                  const cost = context.raw.cost || 0;
+                  const wrapped = wrapText(msg, 60);
+                  wrapped.push('', 'Cost: ' + cost.toLocaleString() + ' tokens');
+                  return wrapped;
+                } else {
+                  return context.dataset.label + ': ' + context.parsed.y.toLocaleString();
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Toggle function to switch between message-based and time-based x-axis
+    function toggleXAxis() {
+      // Check if vertical line exists before toggling
+      const contextLineIndex = contextChart.data.datasets.findIndex(d => d.label === 'Selected Message');
+      const cumulativeLineIndex = cumulativeChart.data.datasets.findIndex(d => d.label === 'Selected Message');
+
+      let savedLineData = null;
+      if (contextLineIndex >= 0) {
+        const lineDataset = contextChart.data.datasets[contextLineIndex];
+        savedLineData = {
+          tsMs: lineDataset.tsMs,
+          msgIndex: lineDataset.msgIndex
+        };
+        // Remove lines from both charts
+        contextChart.data.datasets.splice(contextLineIndex, 1);
+        cumulativeChart.data.datasets.splice(cumulativeLineIndex, 1);
+      }
+
+      // Toggle mode
+      MESSAGE_BASED_X = !MESSAGE_BASED_X;
+      const toggleSwitch = document.getElementById('toggleSwitch');
+      const toggleIcon = document.getElementById('toggleIcon');
+
+      if (MESSAGE_BASED_X) {
+        toggleSwitch.classList.add('active');
+        toggleIcon.textContent = '✓';
+      } else {
+        toggleSwitch.classList.remove('active');
+        toggleIcon.textContent = '✕';
+      }
+
+      // Update context chart
+      const contextData = MESSAGE_BASED_X ? CONTEXT_MSG_DATA : CONTEXT_TIME_DATA;
+      const userMsgContext = USER_MESSAGES_CONTEXT.map(pt => ({
+        ...pt,
+        x: MESSAGE_BASED_X ? pt.x_msg : pt.x_time
+      }));
+
+      contextChart.data.datasets[0].data = contextData;
+      contextChart.data.datasets[1].data = userMsgContext;
+      contextChart.data.datasets[2].data = [
+        { x: contextData[0].x, y: MODEL_CONTEXT_WINDOW },
+        { x: contextData[contextData.length - 1].x, y: MODEL_CONTEXT_WINDOW }
+      ];
+      contextChart.options.scales.x = getXAxisConfig(MESSAGE_BASED_X);
+      contextChart.update('none');
+
+      // Update cumulative chart
+      const cumulativeData = MESSAGE_BASED_X ? CUMULATIVE_MSG_DATA : CUMULATIVE_TIME_DATA;
+      const userMsgCumulative = USER_MESSAGES_CUMULATIVE.map(pt => ({
+        ...pt,
+        x: MESSAGE_BASED_X ? pt.x_msg : pt.x_time
+      }));
+
+      cumulativeChart.data.datasets[0].data = cumulativeData;
+      cumulativeChart.data.datasets[1].data = userMsgCumulative;
+      cumulativeChart.options.scales.x = getXAxisConfig(MESSAGE_BASED_X);
+      cumulativeChart.update('none');
+
+      // Redraw vertical line if it existed
+      if (savedLineData) {
+        const xPos = MESSAGE_BASED_X ? savedLineData.msgIndex : savedLineData.tsMs;
+        const contextYMax = Math.max(...CONTEXT_MSG_DATA.map(d => d.y), ...CONTEXT_TIME_DATA.map(d => d.y), MODEL_CONTEXT_WINDOW);
+        const cumulativeYMax = Math.max(...CUMULATIVE_MSG_DATA.map(d => d.y), ...CUMULATIVE_TIME_DATA.map(d => d.y));
+
+        contextChart.data.datasets.push({
+          label: 'Selected Message',
+          data: [{ x: xPos, y: 0 }, { x: xPos, y: contextYMax }],
+          type: 'line',
+          borderColor: '#fbbf24',
+          borderWidth: 2,
+          borderDash: [8, 4],
+          pointRadius: 0,
+          fill: false,
+          order: 0,
+          tsMs: savedLineData.tsMs,
+          msgIndex: savedLineData.msgIndex
+        });
+
+        cumulativeChart.data.datasets.push({
+          label: 'Selected Message',
+          data: [{ x: xPos, y: 0 }, { x: xPos, y: cumulativeYMax }],
+          type: 'line',
+          borderColor: '#fbbf24',
+          borderWidth: 2,
+          borderDash: [8, 4],
+          pointRadius: 0,
+          fill: false,
+          order: 0,
+          tsMs: savedLineData.tsMs,
+          msgIndex: savedLineData.msgIndex
+        });
+
+        contextChart.update('none');
+        cumulativeChart.update('none');
+      }
+    }
+
+    // Highlight message function - draws vertical line on both charts
+    function highlightMessage(cardElement) {
+      // Remove selected class from all cards
+      document.querySelectorAll('.message-card').forEach(card => {
+        card.classList.remove('selected');
+      });
+
+      // Add selected class to clicked card
+      cardElement.classList.add('selected');
+
+      const tsMs = parseInt(cardElement.dataset.tsMs);
+      const msgIndex = parseInt(cardElement.dataset.msgIndex);
+
+      // Get cost, duration, and date from card data
+      const userMsgNum = parseInt(cardElement.dataset.index);
+      const costElement = cardElement.querySelector('.cost');
+      const costText = costElement ? costElement.textContent.replace('Cost: ', '').trim() : '0';
+      const dateFull = cardElement.dataset.dateFull || '';
+
+      // Extract duration from card header (without date)
+      const msgNumberElement = cardElement.querySelector('.message-number');
+      const fullText = msgNumberElement ? msgNumberElement.textContent : '';
+      const durationMatch = fullText.match(/\(([^)]+)\)/);
+      let duration = durationMatch ? durationMatch[1] : '0s';
+      // Remove date part from duration (e.g., "4m 22s Oct 04" -> "4m 22s")
+      duration = duration.split(' ').slice(0, 2).join(' ');
+
+      // Update chart titles with cost, duration, and date
+      const contextTitle = document.getElementById('contextChartTitle');
+      const cumulativeTitle = document.getElementById('cumulativeChartTitle');
+      const costSuffix = '<span class="cost-suffix">• User Message #' + userMsgNum + ' Cost: ' + costText + ' tokens (' + duration + ' ' + dateFull + ')</span>';
+
+      contextTitle.innerHTML = 'Context Window Over Time ' + costSuffix;
+      cumulativeTitle.innerHTML = 'Cumulative Total Tokens ' + costSuffix;
+
+      // Determine x position based on current mode
+      const xPos = MESSAGE_BASED_X ? msgIndex : tsMs;
+
+      // Find y-axis ranges for both charts
+      const contextYMax = Math.max(...CONTEXT_MSG_DATA.map(d => d.y), ...CONTEXT_TIME_DATA.map(d => d.y), MODEL_CONTEXT_WINDOW);
+      const cumulativeYMax = Math.max(...CUMULATIVE_MSG_DATA.map(d => d.y), ...CUMULATIVE_TIME_DATA.map(d => d.y));
+
+      // Update or add vertical line dataset to context chart
+      const contextLineIndex = contextChart.data.datasets.findIndex(d => d.label === 'Selected Message');
+      const contextLineData = [
+        { x: xPos, y: 0 },
+        { x: xPos, y: contextYMax }
+      ];
+
+      if (contextLineIndex >= 0) {
+        contextChart.data.datasets[contextLineIndex].data = contextLineData;
+        contextChart.data.datasets[contextLineIndex].tsMs = tsMs;
+        contextChart.data.datasets[contextLineIndex].msgIndex = msgIndex;
+      } else {
+        const newDataset = {
+          label: 'Selected Message',
+          data: contextLineData,
+          type: 'line',
+          borderColor: '#fbbf24',
+          borderWidth: 2,
+          borderDash: [8, 4],
+          pointRadius: 0,
+          fill: false,
+          order: 0,
+          tsMs: tsMs,
+          msgIndex: msgIndex
+        };
+        contextChart.data.datasets.push(newDataset);
+      }
+
+      // Update or add vertical line dataset to cumulative chart
+      const cumulativeLineIndex = cumulativeChart.data.datasets.findIndex(d => d.label === 'Selected Message');
+      const cumulativeLineData = [
+        { x: xPos, y: 0 },
+        { x: xPos, y: cumulativeYMax }
+      ];
+
+      if (cumulativeLineIndex >= 0) {
+        cumulativeChart.data.datasets[cumulativeLineIndex].data = cumulativeLineData;
+        cumulativeChart.data.datasets[cumulativeLineIndex].tsMs = tsMs;
+        cumulativeChart.data.datasets[cumulativeLineIndex].msgIndex = msgIndex;
+      } else {
+        const newDataset = {
+          label: 'Selected Message',
+          data: cumulativeLineData,
+          type: 'line',
+          borderColor: '#fbbf24',
+          borderWidth: 2,
+          borderDash: [8, 4],
+          pointRadius: 0,
+          fill: false,
+          order: 0,
+          tsMs: tsMs,
+          msgIndex: msgIndex
+        };
+        cumulativeChart.data.datasets.push(newDataset);
+      }
+
+      contextChart.update();
+      cumulativeChart.update();
+    }
+  </script>
+</body>
+</html>

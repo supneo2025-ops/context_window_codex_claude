@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Claude Code Context Window - af2f56a6-9583-436e-a6fa-2ded2db86900</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <style>
+    :root {
+      --bg1: #0e1b4d;
+      --bg2: #6b2bbf;
+      --bg3: #a21caf;
+      --card: rgba(20,24,45,0.9);
+      --card-hover: rgba(30,34,55,0.95);
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #60a5fa;
+      --shadow: 0 6px 18px rgba(0,0,0,0.35);
+      --border: rgba(156,163,175,0.2);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;
+      color: var(--text);
+      background: linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 60%, var(--bg3) 100%);
+      height: 100vh;
+      overflow: hidden;
+    }
+    .container { max-width: 1800px; margin: 0 auto; }
+    .header { text-align: center; margin-bottom: 20px; position: relative; }
+    .header h1 { margin: 0 0 8px; font-size: 28px; font-weight: 700; }
+    .header p { margin: 0; color: var(--muted); font-size: 14px; }
+
+    .toggle-container {
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .toggle-label {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 56px;
+      height: 28px;
+      background: rgba(30,34,55,0.7);
+      border-radius: 14px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .toggle-switch.active {
+      background: var(--card);
+    }
+
+    .toggle-slider {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 22px;
+      height: 22px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.3s ease;
+    }
+
+    .toggle-switch.active .toggle-slider {
+      transform: translateX(28px);
+    }
+
+    .toggle-icon {
+      color: #4b5563;
+      font-weight: bold;
+      font-size: 12px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(91px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: var(--shadow);
+    }
+    .stat-title { font-size: 10px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 4px; }
+    .stat-value { font-size: 20px; font-weight: 700; color: var(--accent); }
+
+    .main-layout {
+      display: grid;
+      grid-template-columns: 3fr 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .charts-container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      height: calc(100vh - 210px);
+    }
+
+    .chart-section {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(6px);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chart-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      margin: 0 0 15px 0;
+      text-align: center;
+    }
+
+    .chart-wrap { position: relative; flex: 1; }
+
+    .chat-pane {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(6px);
+      height: calc(100vh - 210px);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .chat-pane::-webkit-scrollbar { width: 8px; }
+    .chat-pane::-webkit-scrollbar-track { background: rgba(156,163,175,0.1); border-radius: 4px; }
+    .chat-pane::-webkit-scrollbar-thumb { background: rgba(96,165,250,0.5); border-radius: 4px; }
+
+    .chat-header {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      margin: -20px -20px 12px -20px;
+      padding: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: -20px;
+      background: rgba(20,24,45,1);
+      backdrop-filter: blur(10px);
+      z-index: 10;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .message-card {
+      background: rgba(30,34,55,0.7);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .message-card:hover {
+      background: var(--card-hover);
+      border-color: var(--accent);
+      transform: translateX(-2px);
+      box-shadow: 0 4px 12px rgba(96,165,250,0.2);
+    }
+
+    .message-card.selected {
+      background: var(--card-hover);
+      border: 2px solid #fbbf24;
+      box-shadow: 0 0 20px rgba(251,191,36,0.4);
+      transform: translateX(-2px);
+    }
+
+    .message-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .message-number {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .message-total {
+      font-size: 11px;
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .message-text {
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+      margin-bottom: 10px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .message-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    .message-context {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .cost {
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .message-time {
+      font-size: 12px;
+      color: var(--accent);
+      font-family: 'Monaco', 'Menlo', monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Claude Code Context Window Usage</h1>
+      <p>Project: -Users-hungnx-PycharmProjects-tmp-context-window | Session: af2f56a6-9583-436e-a6fa-2ded2db86900 | 2025_10_07</p>
+      <div class="toggle-container">
+        <span class="toggle-label">Message-based x-axis</span>
+        <div id="toggleSwitch" class="toggle-switch active" onclick="toggleXAxis()">
+          <div class="toggle-slider">
+            <span class="toggle-icon" id="toggleIcon">✓</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-title">Token Events</div>
+        <div class="stat-value">23</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">User Messages</div>
+        <div class="stat-value">20</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Total Messages</div>
+        <div class="stat-value">45</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Final Context</div>
+        <div class="stat-value">443</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Total Tokens</div>
+        <div class="stat-value">149,485</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Model CW</div>
+        <div class="stat-value">200,000</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Usage</div>
+        <div class="stat-value">0.2%</div>
+      </div>
+    </div>
+
+    <div class="main-layout">
+      <div class="charts-container">
+        <div class="chart-section">
+          <h3 class="chart-title" id="contextChartTitle">Context Window Over Time</h3>
+          <div class="chart-wrap">
+            <canvas id="contextChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-section">
+          <h3 class="chart-title" id="cumulativeChartTitle">Cumulative Total Tokens</h3>
+          <div class="chart-wrap">
+            <canvas id="cumulativeChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-pane">
+        <div class="chat-header">👤 User Messages</div>
+
+      <div class="message-card" data-index="20" data-ts-ms="1759783637509" data-msg-index="44" data-date-full="2025_10_07" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #20 <span style="color: var(--accent); font-weight: 400;">(5s Oct 07)</span></div>
+          <div class="message-total">Message #44</div>
+        </div>
+        <div class="message-text"></div>
+        <div class="message-footer">
+          <div class="message-context">Context: 443 (149,485) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">03:47:17</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="19" data-ts-ms="1759783632388" data-msg-index="42" data-date-full="2025_10_07" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #19 <span style="color: var(--accent); font-weight: 400;">(5s Oct 07)</span></div>
+          <div class="message-total">Message #42</div>
+        </div>
+        <div class="message-text"></div>
+        <div class="message-footer">
+          <div class="message-context">Context: 531 (149,018) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">03:47:12</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="18" data-ts-ms="1759783632246" data-msg-index="41" data-date-full="2025_10_07" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #18 <span style="color: var(--accent); font-weight: 400;">(-3s Oct 07)</span></div>
+          <div class="message-total">Message #41</div>
+        </div>
+        <div class="message-text"></div>
+        <div class="message-footer">
+          <div class="message-context">Context: 531 (149,018) | <span class="cost">Cost: 11,325</span></div>
+          <div class="message-time">03:47:12</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="17" data-ts-ms="1759783623119" data-msg-index="38" data-date-full="2025_10_07" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #17 <span style="color: var(--accent); font-weight: 400;">(6s Oct 07)</span></div>
+          <div class="message-total">Message #38</div>
+        </div>
+        <div class="message-text"></div>
+        <div class="message-footer">
+          <div class="message-context">Context: 11,856 (136,580) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">03:47:03</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="16" data-ts-ms="1759783439088" data-msg-index="34" data-date-full="2025_10_07" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #16 <span style="color: var(--accent); font-weight: 400;">(2m 21s Oct 07)</span></div>
+          <div class="message-total">Message #34</div>
+        </div>
+        <div class="message-text"></div>
+        <div class="message-footer">
+          <div class="message-context">Context: 12,168 (112,529) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">03:43:59</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="15" data-ts-ms="1759783434538" data-msg-index="33" data-date-full="2025_10_07" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #15 <span style="color: var(--accent); font-weight: 400;">(-3s Oct 07)</span></div>
+          <div class="message-total">Message #33</div>
+        </div>
+        <div class="message-text"></div>
+        <div class="message-footer">
+          <div class="message-context">Context: 12,168 (112,529) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">03:43:54</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="14" data-ts-ms="1759783424298" data-msg-index="30" data-date-full="2025_10_07" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #14 <span style="color: var(--accent); font-weight: 400;">(6s Oct 07)</span></div>
+          <div class="message-total">Message #30</div>
+        </div>
+        <div class="message-text"></div>
+        <div class="message-footer">
+          <div class="message-context">Context: 284 (99,732) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">03:43:44</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="13" data-ts-ms="1759783418491" data-msg-index="28" data-date-full="2025_10_07" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #13 <span style="color: var(--accent); font-weight: 400;">(3s Oct 07)</span></div>
+          <div class="message-total">Message #28</div>
+        </div>
+        <div class="message-text"></div>
+        <div class="message-footer">
+          <div class="message-context">Context: 177 (99,415) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">03:43:38</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="12" data-ts-ms="1759783411768" data-msg-index="26" data-date-full="2025_10_07" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #12 <span style="color: var(--accent); font-weight: 400;">(4s Oct 07)</span></div>
+          <div class="message-total">Message #26</div>
+        </div>
+        <div class="message-text"></div>
+        <div class="message-footer">
+          <div class="message-context">Context: 3,349 (99,099) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">03:43:31</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="11" data-ts-ms="1759783360363" data-msg-index="25" data-date-full="2025_10_07" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #11 <span style="color: var(--accent); font-weight: 400;">(-2s Oct 07)</span></div>
+          <div class="message-total">Message #25</div>
+        </div>
+        <div class="message-text"></div>
+        <div class="message-footer">
+          <div class="message-context">Context: 3,349 (99,099) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">03:42:40</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="10" data-ts-ms="1759783350889" data-msg-index="21" data-date-full="2025_10_07" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #10 <span style="color: var(--accent); font-weight: 400;">(7s Oct 07)</span></div>
+          <div class="message-total">Message #21</div>
+        </div>
+        <div class="message-text"></div>
+        <div class="message-footer">
+          <div class="message-context">Context: 3,158 (89,398) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">03:42:30</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="9" data-ts-ms="1759783348974" data-msg-index="20" data-date-full="2025_10_07" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #9 <span style="color: var(--accent); font-weight: 400;">(-4s Oct 07)</span></div>
+          <div class="message-total">Message #20</div>
+        </div>
+        <div class="message-text"></div>
+        <div class="message-footer">
+          <div class="message-context">Context: 3,158 (89,398) | <span class="cost">Cost: 21,749</span></div>
+          <div class="message-time">03:42:28</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="8" data-ts-ms="1759783337043" data-msg-index="17" data-date-full="2025_10_07" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #8 <span style="color: var(--accent); font-weight: 400;">(7s Oct 07)</span></div>
+          <div class="message-total">Message #17</div>
+        </div>
+        <div class="message-text"></div>
+        <div class="message-footer">
+          <div class="message-context">Context: 24,907 (61,307) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">03:42:17</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="7" data-ts-ms="1759783335662" data-msg-index="16" data-date-full="2025_10_07" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #7 <span style="color: var(--accent); font-weight: 400;">(0s Oct 07)</span></div>
+          <div class="message-total">Message #16</div>
+        </div>
+        <div class="message-text"></div>
+        <div class="message-footer">
+          <div class="message-context">Context: 24,907 (61,307) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">03:42:15</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="6" data-ts-ms="1759783329879" data-msg-index="13" data-date-full="2025_10_07" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #6 <span style="color: var(--accent); font-weight: 400;">(5s Oct 07)</span></div>
+          <div class="message-total">Message #13</div>
+        </div>
+        <div class="message-text"></div>
+        <div class="message-footer">
+          <div class="message-context">Context: 478 (35,871) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">03:42:09</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="5" data-ts-ms="1759783327999" data-msg-index="12" data-date-full="2025_10_07" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #5 <span style="color: var(--accent); font-weight: 400;">(0s Oct 07)</span></div>
+          <div class="message-total">Message #12</div>
+        </div>
+        <div class="message-text"></div>
+        <div class="message-footer">
+          <div class="message-context">Context: 478 (35,871) | <span class="cost">Cost: 314</span></div>
+          <div class="message-time">03:42:07</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="4" data-ts-ms="1759783327971" data-msg-index="11" data-date-full="2025_10_07" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #4 <span style="color: var(--accent); font-weight: 400;">(0s Oct 07)</span></div>
+          <div class="message-total">Message #11</div>
+        </div>
+        <div class="message-text"></div>
+        <div class="message-footer">
+          <div class="message-context">Context: 478 (35,871) | <span class="cost">Cost: 314</span></div>
+          <div class="message-time">03:42:07</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="3" data-ts-ms="1759783321332" data-msg-index="7" data-date-full="2025_10_07" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #3 <span style="color: var(--accent); font-weight: 400;">(6s Oct 07)</span></div>
+          <div class="message-total">Message #7</div>
+        </div>
+        <div class="message-text"></div>
+        <div class="message-footer">
+          <div class="message-context">Context: 792 (33,723) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">03:42:01</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="2" data-ts-ms="1759783319173" data-msg-index="6" data-date-full="2025_10_07" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #2 <span style="color: var(--accent); font-weight: 400;">(0s Oct 07)</span></div>
+          <div class="message-total">Message #6</div>
+        </div>
+        <div class="message-text"></div>
+        <div class="message-footer">
+          <div class="message-context">Context: 792 (33,723) | <span class="cost">Cost: 10,168</span></div>
+          <div class="message-time">03:41:59</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="1" data-ts-ms="1759783314902" data-msg-index="2" data-date-full="2025_10_07" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #1 <span style="color: var(--accent); font-weight: 400;">(4s Oct 07)</span></div>
+          <div class="message-total">Message #2</div>
+        </div>
+        <div class="message-text">we have codex_context which generate the html. I want to do the same for claude. The sessions of claude are stored in ~/.claude</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 10,960 (10,967) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">03:41:54</div>
+        </div>
+      </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const CONTEXT_TIME_DATA = [{"x": 1759783318340, "y": 10960}, {"x": 1759783319007, "y": 10960}, {"x": 1759783319084, "y": 10960}, {"x": 1759783326728, "y": 792}, {"x": 1759783327724, "y": 792}, {"x": 1759783327864, "y": 792}, {"x": 1759783334431, "y": 478}, {"x": 1759783335138, "y": 478}, {"x": 1759783344026, "y": 24907}, {"x": 1759783344303, "y": 24907}, {"x": 1759783354877, "y": 3158}, {"x": 1759783357329, "y": 3158}, {"x": 1759783358181, "y": 3158}, {"x": 1759783415885, "y": 3349}, {"x": 1759783422457, "y": 177}, {"x": 1759783429136, "y": 284}, {"x": 1759783431259, "y": 284}, {"x": 1759783443578, "y": 12168}, {"x": 1759783580522, "y": 12168}, {"x": 1759783628297, "y": 11856}, {"x": 1759783629196, "y": 11856}, {"x": 1759783637451, "y": 531}, {"x": 1759783643425, "y": 443}];
+    const CUMULATIVE_TIME_DATA = [{"x": 1759783318340, "y": 10967}, {"x": 1759783319007, "y": 21934}, {"x": 1759783319084, "y": 32901}, {"x": 1759783326728, "y": 33723}, {"x": 1759783327724, "y": 34545}, {"x": 1759783327864, "y": 35367}, {"x": 1759783334431, "y": 35871}, {"x": 1759783335138, "y": 36375}, {"x": 1759783344026, "y": 61307}, {"x": 1759783344303, "y": 86239}, {"x": 1759783354877, "y": 89398}, {"x": 1759783357329, "y": 92557}, {"x": 1759783358181, "y": 95716}, {"x": 1759783415885, "y": 99099}, {"x": 1759783422457, "y": 99415}, {"x": 1759783429136, "y": 99732}, {"x": 1759783431259, "y": 100360}, {"x": 1759783443578, "y": 112529}, {"x": 1759783580522, "y": 124698}, {"x": 1759783628297, "y": 136580}, {"x": 1759783629196, "y": 148462}, {"x": 1759783637451, "y": 149018}, {"x": 1759783643425, "y": 149485}];
+    const CONTEXT_MSG_DATA = [{"x": 3, "y": 10960, "ts": "2025-10-07T03:41:58.340Z"}, {"x": 4, "y": 10960, "ts": "2025-10-07T03:41:59.007Z"}, {"x": 5, "y": 10960, "ts": "2025-10-07T03:41:59.084Z"}, {"x": 8, "y": 792, "ts": "2025-10-07T03:42:06.728Z"}, {"x": 9, "y": 792, "ts": "2025-10-07T03:42:07.724Z"}, {"x": 10, "y": 792, "ts": "2025-10-07T03:42:07.864Z"}, {"x": 14, "y": 478, "ts": "2025-10-07T03:42:14.431Z"}, {"x": 15, "y": 478, "ts": "2025-10-07T03:42:15.138Z"}, {"x": 18, "y": 24907, "ts": "2025-10-07T03:42:24.026Z"}, {"x": 19, "y": 24907, "ts": "2025-10-07T03:42:24.303Z"}, {"x": 22, "y": 3158, "ts": "2025-10-07T03:42:34.877Z"}, {"x": 23, "y": 3158, "ts": "2025-10-07T03:42:37.329Z"}, {"x": 24, "y": 3158, "ts": "2025-10-07T03:42:38.181Z"}, {"x": 27, "y": 3349, "ts": "2025-10-07T03:43:35.885Z"}, {"x": 29, "y": 177, "ts": "2025-10-07T03:43:42.457Z"}, {"x": 31, "y": 284, "ts": "2025-10-07T03:43:49.136Z"}, {"x": 32, "y": 284, "ts": "2025-10-07T03:43:51.259Z"}, {"x": 35, "y": 12168, "ts": "2025-10-07T03:44:03.578Z"}, {"x": 36, "y": 12168, "ts": "2025-10-07T03:46:20.522Z"}, {"x": 39, "y": 11856, "ts": "2025-10-07T03:47:08.297Z"}, {"x": 40, "y": 11856, "ts": "2025-10-07T03:47:09.196Z"}, {"x": 43, "y": 531, "ts": "2025-10-07T03:47:17.451Z"}, {"x": 45, "y": 443, "ts": "2025-10-07T03:47:23.425Z"}];
+    const CUMULATIVE_MSG_DATA = [{"x": 3, "y": 10967, "ts": "2025-10-07T03:41:58.340Z"}, {"x": 4, "y": 21934, "ts": "2025-10-07T03:41:59.007Z"}, {"x": 5, "y": 32901, "ts": "2025-10-07T03:41:59.084Z"}, {"x": 8, "y": 33723, "ts": "2025-10-07T03:42:06.728Z"}, {"x": 9, "y": 34545, "ts": "2025-10-07T03:42:07.724Z"}, {"x": 10, "y": 35367, "ts": "2025-10-07T03:42:07.864Z"}, {"x": 14, "y": 35871, "ts": "2025-10-07T03:42:14.431Z"}, {"x": 15, "y": 36375, "ts": "2025-10-07T03:42:15.138Z"}, {"x": 18, "y": 61307, "ts": "2025-10-07T03:42:24.026Z"}, {"x": 19, "y": 86239, "ts": "2025-10-07T03:42:24.303Z"}, {"x": 22, "y": 89398, "ts": "2025-10-07T03:42:34.877Z"}, {"x": 23, "y": 92557, "ts": "2025-10-07T03:42:37.329Z"}, {"x": 24, "y": 95716, "ts": "2025-10-07T03:42:38.181Z"}, {"x": 27, "y": 99099, "ts": "2025-10-07T03:43:35.885Z"}, {"x": 29, "y": 99415, "ts": "2025-10-07T03:43:42.457Z"}, {"x": 31, "y": 99732, "ts": "2025-10-07T03:43:49.136Z"}, {"x": 32, "y": 100360, "ts": "2025-10-07T03:43:51.259Z"}, {"x": 35, "y": 112529, "ts": "2025-10-07T03:44:03.578Z"}, {"x": 36, "y": 124698, "ts": "2025-10-07T03:46:20.522Z"}, {"x": 39, "y": 136580, "ts": "2025-10-07T03:47:08.297Z"}, {"x": 40, "y": 148462, "ts": "2025-10-07T03:47:09.196Z"}, {"x": 43, "y": 149018, "ts": "2025-10-07T03:47:17.451Z"}, {"x": 45, "y": 149485, "ts": "2025-10-07T03:47:23.425Z"}];
+    const USER_MESSAGES_CONTEXT = [{"x": 2, "y": 10960, "message": "we have codex_context which generate the html. I want to do the same for claude. The sessions of claude are stored in ~/.claude", "user_msg_index": 1, "total_msg_index": 2, "x_time": 1759783314902, "x_msg": 2, "cost": 0, "duration": "(4s)"}, {"x": 6, "y": 792, "message": "", "user_msg_index": 2, "total_msg_index": 6, "x_time": 1759783319173, "x_msg": 6, "cost": 10168, "duration": "(0s)"}, {"x": 7, "y": 792, "message": "", "user_msg_index": 3, "total_msg_index": 7, "x_time": 1759783321332, "x_msg": 7, "cost": 0, "duration": "(6s)"}, {"x": 11, "y": 478, "message": "", "user_msg_index": 4, "total_msg_index": 11, "x_time": 1759783327971, "x_msg": 11, "cost": 314, "duration": "(0s)"}, {"x": 12, "y": 478, "message": "", "user_msg_index": 5, "total_msg_index": 12, "x_time": 1759783327999, "x_msg": 12, "cost": 314, "duration": "(0s)"}, {"x": 13, "y": 478, "message": "", "user_msg_index": 6, "total_msg_index": 13, "x_time": 1759783329879, "x_msg": 13, "cost": 0, "duration": "(5s)"}, {"x": 16, "y": 24907, "message": "", "user_msg_index": 7, "total_msg_index": 16, "x_time": 1759783335662, "x_msg": 16, "cost": 0, "duration": "(0s)"}, {"x": 17, "y": 24907, "message": "", "user_msg_index": 8, "total_msg_index": 17, "x_time": 1759783337043, "x_msg": 17, "cost": 0, "duration": "(7s)"}, {"x": 20, "y": 3158, "message": "", "user_msg_index": 9, "total_msg_index": 20, "x_time": 1759783348974, "x_msg": 20, "cost": 21749, "duration": "(-4s)"}, {"x": 21, "y": 3158, "message": "", "user_msg_index": 10, "total_msg_index": 21, "x_time": 1759783350889, "x_msg": 21, "cost": 0, "duration": "(7s)"}, {"x": 25, "y": 3349, "message": "", "user_msg_index": 11, "total_msg_index": 25, "x_time": 1759783360363, "x_msg": 25, "cost": 0, "duration": "(-2s)"}, {"x": 26, "y": 3349, "message": "", "user_msg_index": 12, "total_msg_index": 26, "x_time": 1759783411768, "x_msg": 26, "cost": 0, "duration": "(4s)"}, {"x": 28, "y": 177, "message": "", "user_msg_index": 13, "total_msg_index": 28, "x_time": 1759783418491, "x_msg": 28, "cost": 0, "duration": "(3s)"}, {"x": 30, "y": 284, "message": "", "user_msg_index": 14, "total_msg_index": 30, "x_time": 1759783424298, "x_msg": 30, "cost": 0, "duration": "(6s)"}, {"x": 33, "y": 12168, "message": "", "user_msg_index": 15, "total_msg_index": 33, "x_time": 1759783434538, "x_msg": 33, "cost": 0, "duration": "(-3s)"}, {"x": 34, "y": 12168, "message": "", "user_msg_index": 16, "total_msg_index": 34, "x_time": 1759783439088, "x_msg": 34, "cost": 0, "duration": "(2m 21s)"}, {"x": 38, "y": 11856, "message": "", "user_msg_index": 17, "total_msg_index": 38, "x_time": 1759783623119, "x_msg": 38, "cost": 0, "duration": "(6s)"}, {"x": 41, "y": 531, "message": "", "user_msg_index": 18, "total_msg_index": 41, "x_time": 1759783632246, "x_msg": 41, "cost": 11325, "duration": "(-3s)"}, {"x": 42, "y": 531, "message": "", "user_msg_index": 19, "total_msg_index": 42, "x_time": 1759783632388, "x_msg": 42, "cost": 0, "duration": "(5s)"}, {"x": 44, "y": 443, "message": "", "user_msg_index": 20, "total_msg_index": 44, "x_time": 1759783637509, "x_msg": 44, "cost": 0, "duration": "(5s)"}];
+    const USER_MESSAGES_CUMULATIVE = [{"x": 2, "y": 10967, "message": "we have codex_context which generate the html. I want to do the same for claude. The sessions of claude are stored in ~/.claude", "user_msg_index": 1, "total_msg_index": 2, "x_time": 1759783314902, "x_msg": 2, "cost": 0, "duration": "(4s)"}, {"x": 6, "y": 33723, "message": "", "user_msg_index": 2, "total_msg_index": 6, "x_time": 1759783319173, "x_msg": 6, "cost": 10168, "duration": "(0s)"}, {"x": 7, "y": 33723, "message": "", "user_msg_index": 3, "total_msg_index": 7, "x_time": 1759783321332, "x_msg": 7, "cost": 0, "duration": "(6s)"}, {"x": 11, "y": 35871, "message": "", "user_msg_index": 4, "total_msg_index": 11, "x_time": 1759783327971, "x_msg": 11, "cost": 314, "duration": "(0s)"}, {"x": 12, "y": 35871, "message": "", "user_msg_index": 5, "total_msg_index": 12, "x_time": 1759783327999, "x_msg": 12, "cost": 314, "duration": "(0s)"}, {"x": 13, "y": 35871, "message": "", "user_msg_index": 6, "total_msg_index": 13, "x_time": 1759783329879, "x_msg": 13, "cost": 0, "duration": "(5s)"}, {"x": 16, "y": 61307, "message": "", "user_msg_index": 7, "total_msg_index": 16, "x_time": 1759783335662, "x_msg": 16, "cost": 0, "duration": "(0s)"}, {"x": 17, "y": 61307, "message": "", "user_msg_index": 8, "total_msg_index": 17, "x_time": 1759783337043, "x_msg": 17, "cost": 0, "duration": "(7s)"}, {"x": 20, "y": 89398, "message": "", "user_msg_index": 9, "total_msg_index": 20, "x_time": 1759783348974, "x_msg": 20, "cost": 21749, "duration": "(-4s)"}, {"x": 21, "y": 89398, "message": "", "user_msg_index": 10, "total_msg_index": 21, "x_time": 1759783350889, "x_msg": 21, "cost": 0, "duration": "(7s)"}, {"x": 25, "y": 99099, "message": "", "user_msg_index": 11, "total_msg_index": 25, "x_time": 1759783360363, "x_msg": 25, "cost": 0, "duration": "(-2s)"}, {"x": 26, "y": 99099, "message": "", "user_msg_index": 12, "total_msg_index": 26, "x_time": 1759783411768, "x_msg": 26, "cost": 0, "duration": "(4s)"}, {"x": 28, "y": 99415, "message": "", "user_msg_index": 13, "total_msg_index": 28, "x_time": 1759783418491, "x_msg": 28, "cost": 0, "duration": "(3s)"}, {"x": 30, "y": 99732, "message": "", "user_msg_index": 14, "total_msg_index": 30, "x_time": 1759783424298, "x_msg": 30, "cost": 0, "duration": "(6s)"}, {"x": 33, "y": 112529, "message": "", "user_msg_index": 15, "total_msg_index": 33, "x_time": 1759783434538, "x_msg": 33, "cost": 0, "duration": "(-3s)"}, {"x": 34, "y": 112529, "message": "", "user_msg_index": 16, "total_msg_index": 34, "x_time": 1759783439088, "x_msg": 34, "cost": 0, "duration": "(2m 21s)"}, {"x": 38, "y": 136580, "message": "", "user_msg_index": 17, "total_msg_index": 38, "x_time": 1759783623119, "x_msg": 38, "cost": 0, "duration": "(6s)"}, {"x": 41, "y": 149018, "message": "", "user_msg_index": 18, "total_msg_index": 41, "x_time": 1759783632246, "x_msg": 41, "cost": 11325, "duration": "(-3s)"}, {"x": 42, "y": 149018, "message": "", "user_msg_index": 19, "total_msg_index": 42, "x_time": 1759783632388, "x_msg": 42, "cost": 0, "duration": "(5s)"}, {"x": 44, "y": 149485, "message": "", "user_msg_index": 20, "total_msg_index": 44, "x_time": 1759783637509, "x_msg": 44, "cost": 0, "duration": "(5s)"}];
+    const MODEL_CONTEXT_WINDOW = 200000;
+    const INDEX_TO_TS = {"3": "2025-10-07T03:41:58.340Z", "4": "2025-10-07T03:41:59.007Z", "5": "2025-10-07T03:41:59.084Z", "8": "2025-10-07T03:42:06.728Z", "9": "2025-10-07T03:42:07.724Z", "10": "2025-10-07T03:42:07.864Z", "14": "2025-10-07T03:42:14.431Z", "15": "2025-10-07T03:42:15.138Z", "18": "2025-10-07T03:42:24.026Z", "19": "2025-10-07T03:42:24.303Z", "22": "2025-10-07T03:42:34.877Z", "23": "2025-10-07T03:42:37.329Z", "24": "2025-10-07T03:42:38.181Z", "27": "2025-10-07T03:43:35.885Z", "29": "2025-10-07T03:43:42.457Z", "31": "2025-10-07T03:43:49.136Z", "32": "2025-10-07T03:43:51.259Z", "35": "2025-10-07T03:44:03.578Z", "36": "2025-10-07T03:46:20.522Z", "39": "2025-10-07T03:47:08.297Z", "40": "2025-10-07T03:47:09.196Z", "43": "2025-10-07T03:47:17.451Z", "45": "2025-10-07T03:47:23.425Z", "1": "2025-10-07T03:41:42.859Z", "2": "2025-10-07T03:41:50.599Z", "6": "2025-10-07T03:42:21.560Z", "7": "2025-10-07T03:42:29.300Z", "11": "2025-10-07T03:43:00.260Z", "12": "2025-10-07T03:43:08.001Z", "13": "2025-10-07T03:43:15.741Z", "16": "2025-10-07T03:43:38.961Z", "17": "2025-10-07T03:43:46.701Z", "20": "2025-10-07T03:44:09.922Z", "21": "2025-10-07T03:44:17.662Z", "25": "2025-10-07T03:44:48.622Z", "26": "2025-10-07T03:44:56.362Z", "28": "2025-10-07T03:45:11.842Z", "30": "2025-10-07T03:45:27.323Z", "33": "2025-10-07T03:45:50.543Z", "34": "2025-10-07T03:45:58.283Z", "37": "2025-10-07T03:46:21.504Z", "38": "2025-10-07T03:46:29.244Z", "41": "2025-10-07T03:46:52.464Z", "42": "2025-10-07T03:47:00.204Z", "44": "2025-10-07T03:47:15.684Z"};
+    let MESSAGE_BASED_X = true;
+
+    function formatTime(isoString) {
+      const date = new Date(isoString);
+      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+    }
+
+    function getXAxisConfig(isMessageBased) {
+      if (isMessageBased) {
+        return {
+          type: 'linear',
+          title: { display: true, text: 'Time (message-based)', color: '#9ca3af', font: { size: 14 } },
+          ticks: {
+            color: '#9ca3af',
+            maxTicksLimit: 20,
+            callback: function(value) {
+              const idx = Math.round(value);
+              const ts = INDEX_TO_TS[idx];
+              return ts ? formatTime(ts) : '';
+            }
+          },
+          grid: { color: 'rgba(156,163,175,0.1)' }
+        };
+      } else {
+        return {
+          type: 'time',
+          time: { unit: 'minute', displayFormats: { minute: 'HH:mm', hour: 'HH:mm' } },
+          title: { display: true, text: 'Time', color: '#9ca3af', font: { size: 14 } },
+          ticks: { color: '#9ca3af' },
+          grid: { color: 'rgba(156,163,175,0.1)' }
+        };
+      }
+    }
+
+    const ctxContext = document.getElementById('contextChart').getContext('2d');
+    const contextChart = new Chart(ctxContext, {
+      type: 'line',
+      data: {
+        datasets: [
+          {
+            label: 'Context Window Tokens',
+            data: MESSAGE_BASED_X ? CONTEXT_MSG_DATA : CONTEXT_TIME_DATA,
+            parsing: false,
+            borderColor: '#60a5fa',
+            backgroundColor: 'rgba(96,165,250,0.15)',
+            tension: 0.3,
+            pointRadius: 0,
+            borderWidth: 2,
+            fill: true,
+            order: 2
+          },
+          {
+            label: 'User Messages',
+            data: USER_MESSAGES_CONTEXT,
+            parsing: false,
+            type: 'scatter',
+            backgroundColor: '#fbbf24',
+            borderColor: '#f59e0b',
+            borderWidth: 2,
+            pointRadius: 8,
+            pointHoverRadius: 10,
+            pointStyle: 'star',
+            order: 1
+          },
+          {
+            label: 'Model Context Window Limit',
+            data: (function() {
+              const data = MESSAGE_BASED_X ? CONTEXT_MSG_DATA : CONTEXT_TIME_DATA;
+              return [
+                { x: data[0].x, y: MODEL_CONTEXT_WINDOW },
+                { x: data[data.length - 1].x, y: MODEL_CONTEXT_WINDOW }
+              ];
+            })(),
+            parsing: false,
+            borderColor: '#ef4444',
+            borderWidth: 2,
+            borderDash: [10, 5],
+            pointRadius: 0,
+            fill: false,
+            order: 3
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        onClick: (event, elements) => {
+          if (elements.length > 0 && elements[0].datasetIndex === 1) {
+            const data = USER_MESSAGES_CONTEXT[elements[0].index];
+            const card = document.querySelector('.message-card[data-index="' + data.user_msg_index + '"]');
+            if (card) {
+              card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              setTimeout(() => highlightMessage(card), 300);
+            }
+          }
+        },
+        scales: {
+          x: getXAxisConfig(MESSAGE_BASED_X),
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: 'Tokens', color: '#9ca3af', font: { size: 14 } },
+            ticks: { color: '#9ca3af', callback: function(value) { return value.toLocaleString(); } },
+            grid: { color: 'rgba(156,163,175,0.1)' }
+          }
+        },
+        plugins: {
+          legend: { position: 'top', labels: { color: '#e5e7eb', padding: 10, font: { size: 11 } } },
+          tooltip: {
+            backgroundColor: 'rgba(20,24,45,0.95)',
+            titleColor: '#e5e7eb',
+            bodyColor: '#e5e7eb',
+            borderColor: '#60a5fa',
+            borderWidth: 1,
+            padding: 12
+          }
+        }
+      }
+    });
+
+    const ctxCumulative = document.getElementById('cumulativeChart').getContext('2d');
+    const cumulativeChart = new Chart(ctxCumulative, {
+      type: 'line',
+      data: {
+        datasets: [
+          {
+            label: 'Cumulative Total Tokens',
+            data: MESSAGE_BASED_X ? CUMULATIVE_MSG_DATA : CUMULATIVE_TIME_DATA,
+            parsing: false,
+            borderColor: '#8b5cf6',
+            backgroundColor: 'rgba(139,92,246,0.15)',
+            tension: 0.3,
+            pointRadius: 0,
+            borderWidth: 2,
+            fill: true,
+            order: 2
+          },
+          {
+            label: 'User Messages',
+            data: USER_MESSAGES_CUMULATIVE,
+            parsing: false,
+            type: 'scatter',
+            backgroundColor: '#fbbf24',
+            borderColor: '#f59e0b',
+            borderWidth: 2,
+            pointRadius: 8,
+            pointHoverRadius: 10,
+            pointStyle: 'star',
+            order: 1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: getXAxisConfig(MESSAGE_BASED_X),
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: 'Total Tokens', color: '#9ca3af', font: { size: 14 } },
+            ticks: { color: '#9ca3af', callback: function(value) { return value.toLocaleString(); } },
+            grid: { color: 'rgba(156,163,175,0.1)' }
+          }
+        },
+        plugins: {
+          legend: { position: 'top', labels: { color: '#e5e7eb', padding: 10, font: { size: 11 } } },
+          tooltip: {
+            backgroundColor: 'rgba(20,24,45,0.95)',
+            titleColor: '#e5e7eb',
+            bodyColor: '#e5e7eb',
+            borderColor: '#8b5cf6',
+            borderWidth: 1,
+            padding: 12
+          }
+        }
+      }
+    });
+
+    function toggleXAxis() {
+      MESSAGE_BASED_X = !MESSAGE_BASED_X;
+      const toggleSwitch = document.getElementById('toggleSwitch');
+      const toggleIcon = document.getElementById('toggleIcon');
+
+      if (MESSAGE_BASED_X) {
+        toggleSwitch.classList.add('active');
+        toggleIcon.textContent = '✓';
+      } else {
+        toggleSwitch.classList.remove('active');
+        toggleIcon.textContent = '✕';
+      }
+
+      const contextData = MESSAGE_BASED_X ? CONTEXT_MSG_DATA : CONTEXT_TIME_DATA;
+      const userMsgContext = USER_MESSAGES_CONTEXT.map(pt => ({ ...pt, x: MESSAGE_BASED_X ? pt.x_msg : pt.x_time }));
+
+      contextChart.data.datasets[0].data = contextData;
+      contextChart.data.datasets[1].data = userMsgContext;
+      contextChart.data.datasets[2].data = [
+        { x: contextData[0].x, y: MODEL_CONTEXT_WINDOW },
+        { x: contextData[contextData.length - 1].x, y: MODEL_CONTEXT_WINDOW }
+      ];
+      contextChart.options.scales.x = getXAxisConfig(MESSAGE_BASED_X);
+      contextChart.update('none');
+
+      const cumulativeData = MESSAGE_BASED_X ? CUMULATIVE_MSG_DATA : CUMULATIVE_TIME_DATA;
+      const userMsgCumulative = USER_MESSAGES_CUMULATIVE.map(pt => ({ ...pt, x: MESSAGE_BASED_X ? pt.x_msg : pt.x_time }));
+
+      cumulativeChart.data.datasets[0].data = cumulativeData;
+      cumulativeChart.data.datasets[1].data = userMsgCumulative;
+      cumulativeChart.options.scales.x = getXAxisConfig(MESSAGE_BASED_X);
+      cumulativeChart.update('none');
+    }
+
+    function highlightMessage(cardElement) {
+      document.querySelectorAll('.message-card').forEach(card => card.classList.remove('selected'));
+      cardElement.classList.add('selected');
+    }
+  </script>
+</body>
+</html>
