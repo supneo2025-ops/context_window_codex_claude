@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.2.0] - 2025-10-07
+
+### Added
+- **Vertical crosshair line** when clicking user messages
+  - Yellow dashed line appears on both charts
+  - Persists when toggling between time/message views
+  - Automatically adjusts position based on current mode
+- **Enhanced chart titles** showing clicked message details
+  - Displays: User Message #X Cost: N tokens (duration date)
+  - Updates dynamically when clicking different messages
+- **Improved toggle function** to preserve crosshair position
+  - Saves line data before mode change
+  - Redraws in correct position after toggle
+
+### Changed
+- Chart title now updates with selected message context
+- Toggle function preserves UI state better
+
+### Feature Parity
+- ✅ Now has complete feature parity with Codex version
+- All interactive features from Codex version implemented
+
 ## [1.1.0] - 2025-10-07
 
 ### Added

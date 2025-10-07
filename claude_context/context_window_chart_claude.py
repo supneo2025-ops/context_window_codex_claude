@@ -11,7 +11,7 @@ import json
 import re
 import subprocess
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 # Claude sessions are stored in ~/.claude/projects/
@@ -160,28 +160,31 @@ def escape_html(text: str) -> str:
 
 
 def format_time(ts: str) -> str:
-    """Format timestamp for display."""
+    """Format timestamp for display in UTC+7."""
     try:
-        dt = datetime.fromisoformat(ts.rstrip('Z'))
-        return dt.strftime('%H:%M:%S')
+        dt = datetime.fromisoformat(ts.rstrip('Z')).replace(tzinfo=timezone.utc)
+        dt_utc7 = dt.astimezone(timezone(timedelta(hours=7)))
+        return dt_utc7.strftime('%H:%M:%S')
     except:
         return ts
 
 
 def format_date_short(ts: str) -> str:
-    """Format date as 'Oct 04'."""
+    """Format date as 'Oct 04' in UTC+7."""
     try:
-        dt = datetime.fromisoformat(ts.rstrip('Z'))
-        return dt.strftime('%b %d')
+        dt = datetime.fromisoformat(ts.rstrip('Z')).replace(tzinfo=timezone.utc)
+        dt_utc7 = dt.astimezone(timezone(timedelta(hours=7)))
+        return dt_utc7.strftime('%b %d')
     except:
         return ts
 
 
 def format_date_full(ts: str) -> str:
-    """Format date as '2025_10_04'."""
+    """Format date as '2025_10_04' in UTC+7."""
     try:
-        dt = datetime.fromisoformat(ts.rstrip('Z'))
-        return dt.strftime('%Y_%m_%d')
+        dt = datetime.fromisoformat(ts.rstrip('Z')).replace(tzinfo=timezone.utc)
+        dt_utc7 = dt.astimezone(timezone(timedelta(hours=7)))
+        return dt_utc7.strftime('%Y_%m_%d')
     except:
         return ts
 
@@ -585,6 +588,13 @@ def generate_html(token_data: list, user_messages: list, output_path: Path,
       text-align: center;
     }}
 
+    .chart-title .cost-suffix {{
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 400;
+      margin-left: 8px;
+    }}
+
     .chart-wrap {{ position: relative; flex: 1; }}
 
     .chat-pane {{
@@ -781,7 +791,12 @@ def generate_html(token_data: list, user_messages: list, output_path: Path,
 
     function formatTime(isoString) {{
       const date = new Date(isoString);
-      return date.toLocaleTimeString('en-US', {{ hour: '2-digit', minute: '2-digit', hour12: false }});
+      return date.toLocaleTimeString('en-US', {{
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'Asia/Bangkok'  // UTC+7
+      }});
     }}
 
     function getXAxisConfig(isMessageBased) {{
@@ -809,6 +824,29 @@ def generate_html(token_data: list, user_messages: list, output_path: Path,
           grid: {{ color: 'rgba(156,163,175,0.1)' }}
         }};
       }}
+    }}
+
+    // Helper function to wrap text at a given character limit
+    function wrapText(text, maxWidth) {{
+      const words = text.split(' ');
+      const lines = [];
+      let currentLine = '';
+
+      for (let word of words) {{
+        const testLine = currentLine ? currentLine + ' ' + word : word;
+        if (testLine.length > maxWidth && currentLine) {{
+          lines.push(currentLine);
+          currentLine = word;
+        }} else {{
+          currentLine = testLine;
+        }}
+      }}
+
+      if (currentLine) {{
+        lines.push(currentLine);
+      }}
+
+      return lines;
     }}
 
     const ctxContext = document.getElementById('contextChart').getContext('2d');
@@ -890,7 +928,35 @@ def generate_html(token_data: list, user_messages: list, output_path: Path,
             bodyColor: '#e5e7eb',
             borderColor: '#60a5fa',
             borderWidth: 1,
-            padding: 12
+            padding: 12,
+            displayColors: false,
+            callbacks: {{
+              title: function(context) {{
+                if (context[0].dataset.label === 'User Messages') {{
+                  const raw = context[0].raw;
+                  const userIdx = raw.user_msg_index || 0;
+                  const totalIdx = raw.total_msg_index || 0;
+                  const padding = '                    ';
+                  return '👤 User Message (#' + userIdx + ')' + padding + 'message #' + totalIdx;
+                }}
+                return context[0].label;
+              }},
+              label: function(context) {{
+                if (context.dataset.label === 'User Messages') {{
+                  const msg = context.raw.message || '';
+                  const cost = context.raw.cost || 0;
+                  const wrapped = wrapText(msg, 60);
+                  wrapped.push('', 'Cost: ' + cost.toLocaleString() + ' tokens');
+                  return wrapped;
+                }} else if (context.dataset.label === 'Context Window Tokens') {{
+                  const value = context.parsed.y;
+                  const percent = ((value / MODEL_CONTEXT_WINDOW) * 100).toFixed(2);
+                  return context.dataset.label + ': ' + value.toLocaleString() + ' (' + percent + '%)';
+                }} else {{
+                  return context.dataset.label + ': ' + context.parsed.y.toLocaleString();
+                }}
+              }}
+            }}
           }}
         }}
       }}
@@ -931,6 +997,18 @@ def generate_html(token_data: list, user_messages: list, output_path: Path,
       options: {{
         responsive: true,
         maintainAspectRatio: false,
+        onClick: (event, elements) => {{
+          if (elements.length > 0 && elements[0].datasetIndex === 1) {{
+            const dataPoint = elements[0];
+            const data = USER_MESSAGES_CUMULATIVE[dataPoint.index];
+            const userMsgIdx = data.user_msg_index;
+            const card = document.querySelector('.message-card[data-index="' + userMsgIdx + '"]');
+            if (card) {{
+              card.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
+              setTimeout(() => highlightMessage(card), 300);
+            }}
+          }}
+        }},
         scales: {{
           x: getXAxisConfig(MESSAGE_BASED_X),
           y: {{
@@ -948,13 +1026,56 @@ def generate_html(token_data: list, user_messages: list, output_path: Path,
             bodyColor: '#e5e7eb',
             borderColor: '#8b5cf6',
             borderWidth: 1,
-            padding: 12
+            padding: 12,
+            displayColors: false,
+            callbacks: {{
+              title: function(context) {{
+                if (context[0].dataset.label === 'User Messages') {{
+                  const raw = context[0].raw;
+                  const userIdx = raw.user_msg_index || 0;
+                  const totalIdx = raw.total_msg_index || 0;
+                  const padding = '                    ';
+                  return '👤 User Message (#' + userIdx + ')' + padding + 'message #' + totalIdx;
+                }}
+                return context[0].label;
+              }},
+              label: function(context) {{
+                if (context.dataset.label === 'User Messages') {{
+                  const msg = context.raw.message || '';
+                  const cost = context.raw.cost || 0;
+                  const wrapped = wrapText(msg, 60);
+                  wrapped.push('', 'Cost: ' + cost.toLocaleString() + ' tokens');
+                  return wrapped;
+                }} else if (context.dataset.label === 'Cumulative Total Tokens') {{
+                  return context.dataset.label + ': ' + context.parsed.y.toLocaleString();
+                }} else {{
+                  return context.dataset.label + ': ' + context.parsed.y.toLocaleString();
+                }}
+              }}
+            }}
           }}
         }}
       }}
     }});
 
     function toggleXAxis() {{
+      // Check if vertical line exists before toggling
+      const contextLineIndex = contextChart.data.datasets.findIndex(d => d.label === 'Selected Message');
+      const cumulativeLineIndex = cumulativeChart.data.datasets.findIndex(d => d.label === 'Selected Message');
+
+      let savedLineData = null;
+      if (contextLineIndex >= 0) {{
+        const lineDataset = contextChart.data.datasets[contextLineIndex];
+        savedLineData = {{
+          tsMs: lineDataset.tsMs,
+          msgIndex: lineDataset.msgIndex
+        }};
+        // Remove lines from both charts
+        contextChart.data.datasets.splice(contextLineIndex, 1);
+        cumulativeChart.data.datasets.splice(cumulativeLineIndex, 1);
+      }}
+
+      // Toggle mode
       MESSAGE_BASED_X = !MESSAGE_BASED_X;
       const toggleSwitch = document.getElementById('toggleSwitch');
       const toggleIcon = document.getElementById('toggleIcon');
@@ -967,8 +1088,12 @@ def generate_html(token_data: list, user_messages: list, output_path: Path,
         toggleIcon.textContent = '✕';
       }}
 
+      // Update context chart
       const contextData = MESSAGE_BASED_X ? CONTEXT_MSG_DATA : CONTEXT_TIME_DATA;
-      const userMsgContext = USER_MESSAGES_CONTEXT.map(pt => ({{ ...pt, x: MESSAGE_BASED_X ? pt.x_msg : pt.x_time }}));
+      const userMsgContext = USER_MESSAGES_CONTEXT.map(pt => ({{
+        ...pt,
+        x: MESSAGE_BASED_X ? pt.x_msg : pt.x_time
+      }}));
 
       contextChart.data.datasets[0].data = contextData;
       contextChart.data.datasets[1].data = userMsgContext;
@@ -979,18 +1104,156 @@ def generate_html(token_data: list, user_messages: list, output_path: Path,
       contextChart.options.scales.x = getXAxisConfig(MESSAGE_BASED_X);
       contextChart.update('none');
 
+      // Update cumulative chart
       const cumulativeData = MESSAGE_BASED_X ? CUMULATIVE_MSG_DATA : CUMULATIVE_TIME_DATA;
-      const userMsgCumulative = USER_MESSAGES_CUMULATIVE.map(pt => ({{ ...pt, x: MESSAGE_BASED_X ? pt.x_msg : pt.x_time }}));
+      const userMsgCumulative = USER_MESSAGES_CUMULATIVE.map(pt => ({{
+        ...pt,
+        x: MESSAGE_BASED_X ? pt.x_msg : pt.x_time
+      }}));
 
       cumulativeChart.data.datasets[0].data = cumulativeData;
       cumulativeChart.data.datasets[1].data = userMsgCumulative;
       cumulativeChart.options.scales.x = getXAxisConfig(MESSAGE_BASED_X);
       cumulativeChart.update('none');
+
+      // Redraw vertical line if it existed
+      if (savedLineData) {{
+        const xPos = MESSAGE_BASED_X ? savedLineData.msgIndex : savedLineData.tsMs;
+        const contextYMax = Math.max(...CONTEXT_MSG_DATA.map(d => d.y), ...CONTEXT_TIME_DATA.map(d => d.y), MODEL_CONTEXT_WINDOW);
+        const cumulativeYMax = Math.max(...CUMULATIVE_MSG_DATA.map(d => d.y), ...CUMULATIVE_TIME_DATA.map(d => d.y));
+
+        contextChart.data.datasets.push({{
+          label: 'Selected Message',
+          data: [{{ x: xPos, y: 0 }}, {{ x: xPos, y: contextYMax }}],
+          type: 'line',
+          borderColor: '#fbbf24',
+          borderWidth: 2,
+          borderDash: [8, 4],
+          pointRadius: 0,
+          fill: false,
+          order: 0,
+          tsMs: savedLineData.tsMs,
+          msgIndex: savedLineData.msgIndex
+        }});
+
+        cumulativeChart.data.datasets.push({{
+          label: 'Selected Message',
+          data: [{{ x: xPos, y: 0 }}, {{ x: xPos, y: cumulativeYMax }}],
+          type: 'line',
+          borderColor: '#fbbf24',
+          borderWidth: 2,
+          borderDash: [8, 4],
+          pointRadius: 0,
+          fill: false,
+          order: 0,
+          tsMs: savedLineData.tsMs,
+          msgIndex: savedLineData.msgIndex
+        }});
+
+        contextChart.update('none');
+        cumulativeChart.update('none');
+      }}
     }}
 
     function highlightMessage(cardElement) {{
-      document.querySelectorAll('.message-card').forEach(card => card.classList.remove('selected'));
+      // Remove selected class from all cards
+      document.querySelectorAll('.message-card').forEach(card => {{
+        card.classList.remove('selected');
+      }});
+
+      // Add selected class to clicked card
       cardElement.classList.add('selected');
+
+      const tsMs = parseInt(cardElement.dataset.tsMs);
+      const msgIndex = parseInt(cardElement.dataset.msgIndex);
+
+      // Get cost, duration, and date from card data
+      const userMsgNum = parseInt(cardElement.dataset.index);
+      const costElement = cardElement.querySelector('.cost');
+      const costText = costElement ? costElement.textContent.replace('Cost: ', '').trim() : '0';
+      const dateFull = cardElement.dataset.dateFull || '';
+
+      // Extract duration from card header (without date)
+      const msgNumberElement = cardElement.querySelector('.message-number');
+      const fullText = msgNumberElement ? msgNumberElement.textContent : '';
+      const durationMatch = fullText.match(/\\(([^)]+)\\)/);
+      let duration = durationMatch ? durationMatch[1] : '0s';
+      // Remove date part from duration (e.g., "4m 22s Oct 04" -> "4m 22s")
+      duration = duration.split(' ').slice(0, 2).join(' ');
+
+      // Update chart titles with cost, duration, and date
+      const contextTitle = document.getElementById('contextChartTitle');
+      const cumulativeTitle = document.getElementById('cumulativeChartTitle');
+      const costSuffix = '<span class="cost-suffix">• User Message #' + userMsgNum + ' Cost: ' + costText + ' tokens (' + duration + ' ' + dateFull + ')</span>';
+
+      contextTitle.innerHTML = 'Context Window Over Time ' + costSuffix;
+      cumulativeTitle.innerHTML = 'Cumulative Total Tokens ' + costSuffix;
+
+      // Determine x position based on current mode
+      const xPos = MESSAGE_BASED_X ? msgIndex : tsMs;
+
+      // Find y-axis ranges for both charts
+      const contextYMax = Math.max(...CONTEXT_MSG_DATA.map(d => d.y), ...CONTEXT_TIME_DATA.map(d => d.y), MODEL_CONTEXT_WINDOW);
+      const cumulativeYMax = Math.max(...CUMULATIVE_MSG_DATA.map(d => d.y), ...CUMULATIVE_TIME_DATA.map(d => d.y));
+
+      // Update or add vertical line dataset to context chart
+      const contextLineIndex = contextChart.data.datasets.findIndex(d => d.label === 'Selected Message');
+      const contextLineData = [
+        {{ x: xPos, y: 0 }},
+        {{ x: xPos, y: contextYMax }}
+      ];
+
+      if (contextLineIndex >= 0) {{
+        contextChart.data.datasets[contextLineIndex].data = contextLineData;
+        contextChart.data.datasets[contextLineIndex].tsMs = tsMs;
+        contextChart.data.datasets[contextLineIndex].msgIndex = msgIndex;
+      }} else {{
+        const newDataset = {{
+          label: 'Selected Message',
+          data: contextLineData,
+          type: 'line',
+          borderColor: '#fbbf24',
+          borderWidth: 2,
+          borderDash: [8, 4],
+          pointRadius: 0,
+          fill: false,
+          order: 0,
+          tsMs: tsMs,
+          msgIndex: msgIndex
+        }};
+        contextChart.data.datasets.push(newDataset);
+      }}
+
+      // Update or add vertical line dataset to cumulative chart
+      const cumulativeLineIndex = cumulativeChart.data.datasets.findIndex(d => d.label === 'Selected Message');
+      const cumulativeLineData = [
+        {{ x: xPos, y: 0 }},
+        {{ x: xPos, y: cumulativeYMax }}
+      ];
+
+      if (cumulativeLineIndex >= 0) {{
+        cumulativeChart.data.datasets[cumulativeLineIndex].data = cumulativeLineData;
+        cumulativeChart.data.datasets[cumulativeLineIndex].tsMs = tsMs;
+        cumulativeChart.data.datasets[cumulativeLineIndex].msgIndex = msgIndex;
+      }} else {{
+        const newDataset = {{
+          label: 'Selected Message',
+          data: cumulativeLineData,
+          type: 'line',
+          borderColor: '#fbbf24',
+          borderWidth: 2,
+          borderDash: [8, 4],
+          pointRadius: 0,
+          fill: false,
+          order: 0,
+          tsMs: tsMs,
+          msgIndex: msgIndex
+        }};
+        cumulativeChart.data.datasets.push(newDataset);
+      }}
+
+      contextChart.update();
+      cumulativeChart.update();
     }}
   </script>
 </body>
@@ -1010,8 +1273,8 @@ def parse_args():
     parser.add_argument('session_file', nargs='?', help='Path to session JSONL file or UUID to search for')
     parser.add_argument('--latest', action='store_true', help='Use the most recent session')
     parser.add_argument('--list', type=float, metavar='H', help='List sessions modified within last H hours (default: 24)')
-    parser.add_argument('--min-length', type=int, default=0, metavar='N',
-                       help='Skip user messages shorter than N characters (default: 0, no filtering)')
+    parser.add_argument('--min-length', type=int, default=10, metavar='N',
+                       help='Skip user messages shorter than N characters (default: 10)')
     parser.add_argument('--time-based-x', action='store_true', help='Use time-based x-axis instead of message-based')
     parser.add_argument('--output-dir', default='./claude_context',
                        help='Output directory for HTML files (default: ./claude_context)')

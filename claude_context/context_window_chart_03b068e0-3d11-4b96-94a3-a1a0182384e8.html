@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Claude Code Context Window - 03b068e0-3d11-4b96-94a3-a1a0182384e8</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <style>
+    :root {
+      --bg1: #0e1b4d;
+      --bg2: #6b2bbf;
+      --bg3: #a21caf;
+      --card: rgba(20,24,45,0.9);
+      --card-hover: rgba(30,34,55,0.95);
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #60a5fa;
+      --shadow: 0 6px 18px rgba(0,0,0,0.35);
+      --border: rgba(156,163,175,0.2);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;
+      color: var(--text);
+      background: linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 60%, var(--bg3) 100%);
+      height: 100vh;
+      overflow: hidden;
+    }
+    .container { max-width: 1800px; margin: 0 auto; }
+    .header { text-align: center; margin-bottom: 20px; position: relative; }
+    .header h1 { margin: 0 0 8px; font-size: 28px; font-weight: 700; }
+    .header p { margin: 0; color: var(--muted); font-size: 14px; }
+
+    .toggle-container {
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .toggle-label {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 56px;
+      height: 28px;
+      background: rgba(30,34,55,0.7);
+      border-radius: 14px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .toggle-switch.active {
+      background: var(--card);
+    }
+
+    .toggle-slider {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 22px;
+      height: 22px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.3s ease;
+    }
+
+    .toggle-switch.active .toggle-slider {
+      transform: translateX(28px);
+    }
+
+    .toggle-icon {
+      color: #4b5563;
+      font-weight: bold;
+      font-size: 12px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(91px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: var(--shadow);
+    }
+    .stat-title { font-size: 10px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 4px; }
+    .stat-value { font-size: 20px; font-weight: 700; color: var(--accent); }
+
+    .main-layout {
+      display: grid;
+      grid-template-columns: 3fr 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .charts-container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      height: calc(100vh - 210px);
+    }
+
+    .chart-section {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(6px);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chart-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      margin: 0 0 15px 0;
+      text-align: center;
+    }
+
+    .chart-title .cost-suffix {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 400;
+      margin-left: 8px;
+    }
+
+    .chart-wrap { position: relative; flex: 1; }
+
+    .chat-pane {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(6px);
+      height: calc(100vh - 210px);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .chat-pane::-webkit-scrollbar { width: 8px; }
+    .chat-pane::-webkit-scrollbar-track { background: rgba(156,163,175,0.1); border-radius: 4px; }
+    .chat-pane::-webkit-scrollbar-thumb { background: rgba(96,165,250,0.5); border-radius: 4px; }
+
+    .chat-header {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      margin: -20px -20px 12px -20px;
+      padding: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: -20px;
+      background: rgba(20,24,45,1);
+      backdrop-filter: blur(10px);
+      z-index: 10;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .message-card {
+      background: rgba(30,34,55,0.7);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .message-card:hover {
+      background: var(--card-hover);
+      border-color: var(--accent);
+      transform: translateX(-2px);
+      box-shadow: 0 4px 12px rgba(96,165,250,0.2);
+    }
+
+    .message-card.selected {
+      background: var(--card-hover);
+      border: 2px solid #fbbf24;
+      box-shadow: 0 0 20px rgba(251,191,36,0.4);
+      transform: translateX(-2px);
+    }
+
+    .message-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .message-number {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .message-total {
+      font-size: 11px;
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .message-text {
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+      margin-bottom: 10px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .message-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    .message-context {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .cost {
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .message-time {
+      font-size: 12px;
+      color: var(--accent);
+      font-family: 'Monaco', 'Menlo', monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Claude Code Context Window Usage</h1>
+      <p>Project: -Users-hungnx-quantum-trading-system | Session: 03b068e0-3d11-4b96-94a3-a1a0182384e8 | 2025_09_10</p>
+      <div class="toggle-container">
+        <span class="toggle-label">Message-based x-axis</span>
+        <div id="toggleSwitch" class="toggle-switch active" onclick="toggleXAxis()">
+          <div class="toggle-slider">
+            <span class="toggle-icon" id="toggleIcon">✓</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-title">Token Events</div>
+        <div class="stat-value">233</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">User Messages</div>
+        <div class="stat-value">31</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Total Messages</div>
+        <div class="stat-value">431</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Final Context</div>
+        <div class="stat-value">307</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Total Tokens</div>
+        <div class="stat-value">1,449,397</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Model CW</div>
+        <div class="stat-value">200,000</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Usage</div>
+        <div class="stat-value">0.2%</div>
+      </div>
+    </div>
+
+    <div class="main-layout">
+      <div class="charts-container">
+        <div class="chart-section">
+          <h3 class="chart-title" id="contextChartTitle">Context Window Over Time</h3>
+          <div class="chart-wrap">
+            <canvas id="contextChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-section">
+          <h3 class="chart-title" id="cumulativeChartTitle">Cumulative Total Tokens</h3>
+          <div class="chart-wrap">
+            <canvas id="cumulativeChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-pane">
+        <div class="chat-header">👤 User Messages</div>
+
+      <div class="message-card" data-index="31" data-ts-ms="1757466214327" data-msg-index="414" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #31 <span style="color: var(--accent); font-weight: 400;">(1m 18s Sep 10)</span></div>
+          <div class="message-total">Message #414</div>
+        </div>
+        <div class="message-text">we have tools.output. ignore this in git</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 96,622 (1,447,190) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">15:03:34</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="30" data-ts-ms="1757465642653" data-msg-index="396" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #30 <span style="color: var(--accent); font-weight: 400;">(3m 45s Sep 10)</span></div>
+          <div class="message-total">Message #396</div>
+        </div>
+        <div class="message-text">commit and push</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 95,048 (1,348,811) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">14:54:02</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="29" data-ts-ms="1757463157755" data-msg-index="382" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #29 <span style="color: var(--accent); font-weight: 400;">(1m 8s Sep 10)</span></div>
+          <div class="message-total">Message #382</div>
+        </div>
+        <div class="message-text">does restart work?</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 359 (1,247,031) | <span class="cost">Cost: 885</span></div>
+          <div class="message-time">14:12:37</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="28" data-ts-ms="1757463151998" data-msg-index="381" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #28 <span style="color: var(--accent); font-weight: 400;">(-26s Sep 10)</span></div>
+          <div class="message-total">Message #381</div>
+        </div>
+        <div class="message-text">[Request interrupted by user for tool use]</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 359 (1,247,031) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">14:12:31</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="27" data-ts-ms="1757463105826" data-msg-index="374" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #27 <span style="color: var(--accent); font-weight: 400;">(19s Sep 10)</span></div>
+          <div class="message-total">Message #374</div>
+        </div>
+        <div class="message-text">the ETF test message was sent sucessfully. but the arbit/unwind messages are not</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 209 (1,246,076) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">14:11:45</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="26" data-ts-ms="1757463081565" data-msg-index="373" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #26 <span style="color: var(--accent); font-weight: 400;">(-13s Sep 10)</span></div>
+          <div class="message-total">Message #373</div>
+        </div>
+        <div class="message-text">[Request interrupted by user for tool use]</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 209 (1,246,076) | <span class="cost">Cost: 38</span></div>
+          <div class="message-time">14:11:21</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="25" data-ts-ms="1757463008740" data-msg-index="359" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #25 <span style="color: var(--accent); font-weight: 400;">(59s Sep 10)</span></div>
+          <div class="message-total">Message #359</div>
+        </div>
+        <div class="message-text">still no message sent. check again</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 85,242 (1,236,011) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">14:10:08</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="24" data-ts-ms="1757461871626" data-msg-index="326" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #24 <span style="color: var(--accent); font-weight: 400;">(3m 11s Sep 10)</span></div>
+          <div class="message-total">Message #326</div>
+        </div>
+        <div class="message-text">check arbit-detector code to see what it calls, tele-bot-v2 is different process, maybe unrelated</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 243 (1,139,574) | <span class="cost">Cost: 40</span></div>
+          <div class="message-time">13:51:11</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="23" data-ts-ms="1757461838449" data-msg-index="325" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #23 <span style="color: var(--accent); font-weight: 400;">(-5s Sep 10)</span></div>
+          <div class="message-total">Message #325</div>
+        </div>
+        <div class="message-text">[Request interrupted by user for tool use]</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 243 (1,139,574) | <span class="cost">Cost: 84</span></div>
+          <div class="message-time">13:50:38</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="22" data-ts-ms="1757461664892" data-msg-index="317" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #22 <span style="color: var(--accent); font-weight: 400;">(2m 47s Sep 10)</span></div>
+          <div class="message-total">Message #317</div>
+        </div>
+        <div class="message-text">the system is detecting unwind but maybe sending message to telegram has problem. check the pm2 process</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 75,370 (1,138,283) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">13:47:44</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="21" data-ts-ms="1757459197366" data-msg-index="292" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #21 <span style="color: var(--accent); font-weight: 400;">(2m 52s Sep 10)</span></div>
+          <div class="message-total">Message #292</div>
+        </div>
+        <div class="message-text">we have ssi_scraper run in pm2. check if it works with proxy</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 370 (1,057,763) | <span class="cost">Cost: 293</span></div>
+          <div class="message-time">13:06:37</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="20" data-ts-ms="1757459048066" data-msg-index="290" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #20 <span style="color: var(--accent); font-weight: 400;">(15s Sep 10)</span></div>
+          <div class="message-total">Message #290</div>
+        </div>
+        <div class="message-text">does mitmproxy and mitmweb has any different in running with the universal_sse_logger_v4</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 70,611 (1,057,392) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">13:04:08</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="19" data-ts-ms="1757456698101" data-msg-index="288" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #19 <span style="color: var(--accent); font-weight: 400;">(4s Sep 10)</span></div>
+          <div class="message-total">Message #288</div>
+        </div>
+        <div class="message-text">how about now</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 19 (986,780) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">12:24:58</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="18" data-ts-ms="1757456617524" data-msg-index="286" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #18 <span style="color: var(--accent); font-weight: 400;">(5s Sep 10)</span></div>
+          <div class="message-total">Message #286</div>
+        </div>
+        <div class="message-text">test again</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 166 (986,760) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">12:23:37</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="17" data-ts-ms="1757456547864" data-msg-index="284" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #17 <span style="color: var(--accent); font-weight: 400;">(6s Sep 10)</span></div>
+          <div class="message-total">Message #284</div>
+        </div>
+        <div class="message-text">just testing</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 605 (986,592) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">12:22:27</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="16" data-ts-ms="1757456298605" data-msg-index="282" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #16 <span style="color: var(--accent); font-weight: 400;">(20s Sep 10)</span></div>
+          <div class="message-total">Message #282</div>
+        </div>
+        <div class="message-text">[Image #1] request has content but not reponse [Image #2]</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 3,489 (985,986) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">12:18:18</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="15" data-ts-ms="1757456136208" data-msg-index="277" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #15 <span style="color: var(--accent); font-weight: 400;">(18s Sep 10)</span></div>
+          <div class="message-total">Message #277</div>
+        </div>
+        <div class="message-text">it says the reponse is only short when call anthropic. why? [Image #1]</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 1,699 (980,302) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">12:15:36</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="14" data-ts-ms="1757455936879" data-msg-index="269" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #14 <span style="color: var(--accent); font-weight: 400;">(51s Sep 10)</span></div>
+          <div class="message-total">Message #269</div>
+        </div>
+        <div class="message-text">I think you just say it in the README, no sh file needed</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 26 (975,698) | <span class="cost">Cost: 227</span></div>
+          <div class="message-time">12:12:16</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="13" data-ts-ms="1757455914218" data-msg-index="268" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #13 <span style="color: var(--accent); font-weight: 400;">(-6s Sep 10)</span></div>
+          <div class="message-total">Message #268</div>
+        </div>
+        <div class="message-text">[Request interrupted by user]</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 26 (975,698) | <span class="cost">Cost: 82</span></div>
+          <div class="message-time">12:11:54</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="12" data-ts-ms="1757455788593" data-msg-index="259" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #12 <span style="color: var(--accent); font-weight: 400;">(1m 59s Sep 10)</span></div>
+          <div class="message-total">Message #259</div>
+        </div>
+        <div class="message-text">it works now, but I have to do it manually because Ctrl C does not stop mitmproxy, you have to press y for yes. update it and make a readme for this</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 235 (973,467) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">12:09:48</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="11" data-ts-ms="1757455588599" data-msg-index="247" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #11 <span style="color: var(--accent); font-weight: 400;">(39s Sep 10)</span></div>
+          <div class="message-total">Message #247</div>
+        </div>
+        <div class="message-text">mitm is running in tmux, stop this and run the new one</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 273 (972,004) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">12:06:28</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="10" data-ts-ms="1757455577235" data-msg-index="246" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #10 <span style="color: var(--accent); font-weight: 400;">(-6s Sep 10)</span></div>
+          <div class="message-total">Message #246</div>
+        </div>
+        <div class="message-text">[Request interrupted by user for tool use]</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 273 (972,004) | <span class="cost">Cost: 139</span></div>
+          <div class="message-time">12:06:17</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="9" data-ts-ms="1757455497715" data-msg-index="234" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #9 <span style="color: var(--accent); font-weight: 400;">(1m 13s Sep 10)</span></div>
+          <div class="message-total">Message #234</div>
+        </div>
+        <div class="message-text">can I view mitm in web mitmweb also</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 158 (969,577) | <span class="cost">Cost: 254</span></div>
+          <div class="message-time">12:04:57</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="8" data-ts-ms="1757455456580" data-msg-index="232" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #8 <span style="color: var(--accent); font-weight: 400;">(7s Sep 10)</span></div>
+          <div class="message-total">Message #232</div>
+        </div>
+        <div class="message-text">do you work now?</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 177 (969,415) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">12:04:16</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="7" data-ts-ms="1757455216229" data-msg-index="195" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #7 <span style="color: var(--accent); font-weight: 400;">(2m 41s Sep 10)</span></div>
+          <div class="message-total">Message #195</div>
+        </div>
+        <div class="message-text">the app asks to go to the page https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 448 (956,885) | <span class="cost">Cost: 167</span></div>
+          <div class="message-time">12:00:16</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="6" data-ts-ms="1757455058170" data-msg-index="180" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #6 <span style="color: var(--accent); font-weight: 400;">(53s Sep 10)</span></div>
+          <div class="message-total">Message #180</div>
+        </div>
+        <div class="message-text">it works now. Now I want chatGpt application can work with proxy, how to do it? the application is installed via AppStore</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 45,451 (909,649) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">11:57:38</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="5" data-ts-ms="1757453908385" data-msg-index="133" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #5 <span style="color: var(--accent); font-weight: 400;">(2m 12s Sep 10)</span></div>
+          <div class="message-total">Message #133</div>
+        </div>
+        <div class="message-text">Read key work summaries and commit analyses from agent_docs/work_summaries/ and agent_docs/commit_analyses/ (focus on the most recent and significant ones). Extract:
+1. Major achievements
+
+... [omitted]
+
+4. Performance improvements achieved
+5. Lessons learned from failures
+
+Focus on understanding the evolution of the system and the technical decisions that shaped the current architecture.</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 3,513 (673,271) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">11:38:28</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="4" data-ts-ms="1757453796546" data-msg-index="91" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #4 <span style="color: var(--accent); font-weight: 400;">(1m 51s Sep 10)</span></div>
+          <div class="message-total">Message #91</div>
+        </div>
+        <div class="message-text">Read the most recent session logs and chat summaries from agent_docs/session_logs/ and agent_docs/chat_summaries/ (focus on files from August 2025, especially the latest ones from Aug 24-
+
+... [omitted]
+
+4. Current state of the system
+5. Any pending issues or ongoing work
+
+Focus on understanding what has been recently done to get context on the current state of the quantum trading system.</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 3,529 (532,111) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">11:36:36</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="3" data-ts-ms="1757453694045" data-msg-index="53" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #3 <span style="color: var(--accent); font-weight: 400;">(1m 42s Sep 10)</span></div>
+          <div class="message-total">Message #53</div>
+        </div>
+        <div class="message-text">Read all markdown files in agent_docs/technical_docs/ directory and provide comprehensive understanding of:
+1. System architecture and infrastructure
+2. Arbit/unwind detection algorithms
+
+... [omitted]
+
+ent and Cronicle configuration
+7. MCP server implementations
+8. Historical backtesting systems
+
+Extract key technical details, algorithms, performance metrics, and operational procedures.</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 3,525 (231,259) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">11:34:54</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="2" data-ts-ms="1757453596919" data-msg-index="18" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #2 <span style="color: var(--accent); font-weight: 400;">(1m 37s Sep 10)</span></div>
+          <div class="message-total">Message #18</div>
+        </div>
+        <div class="message-text">Read all markdown files in agent_docs/business/ directory and provide a comprehensive understanding of:
+1. Trading patterns and arbitrage detection
+2. VN30 data systems and calculations
+3
+
+... [omitted]
+
+se market indices
+
+For each document, extract key concepts, business rules, and important technical details. Focus on understanding the core business logic of this quantum trading system.</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 14,382 (53,651) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">11:33:16</div>
+        </div>
+      </div>
+
+      <div class="message-card" data-index="1" data-ts-ms="1757453560590" data-msg-index="3" data-date-full="2025_09_10" onclick="highlightMessage(this)">
+        <div class="message-header">
+          <div class="message-number">User Message #1 <span style="color: var(--accent); font-weight: 400;">(36s Sep 10)</span></div>
+          <div class="message-total">Message #3</div>
+        </div>
+        <div class="message-text">read all the docs</div>
+        <div class="message-footer">
+          <div class="message-context">Context: 13,229 (13,232) | <span class="cost">Cost: 0</span></div>
+          <div class="message-time">11:32:40</div>
+        </div>
+      </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const CONTEXT_TIME_DATA = [{"x": 1757453564730, "y": 13229}, {"x": 1757453565908, "y": 13229}, {"x": 1757453573518, "y": 143}, {"x": 1757453574530, "y": 143}, {"x": 1757453577980, "y": 172}, {"x": 1757453581139, "y": 5546}, {"x": 1757453585428, "y": 5546}, {"x": 1757453590583, "y": 435}, {"x": 1757453596898, "y": 424}, {"x": 1757453599690, "y": 14382}, {"x": 1757453599984, "y": 14382}, {"x": 1757453603349, "y": 449}, {"x": 1757453603825, "y": 449}, {"x": 1757453604355, "y": 449}, {"x": 1757453605278, "y": 449}, {"x": 1757453606352, "y": 449}, {"x": 1757453607147, "y": 449}, {"x": 1757453607258, "y": 449}, {"x": 1757453612252, "y": 18360}, {"x": 1757453613740, "y": 18360}, {"x": 1757453614770, "y": 18360}, {"x": 1757453616488, "y": 18360}, {"x": 1757453617917, "y": 18360}, {"x": 1757453618200, "y": 18360}, {"x": 1757453618349, "y": 18360}, {"x": 1757453679865, "y": 18336}, {"x": 1757453686356, "y": 1767}, {"x": 1757453694008, "y": 422}, {"x": 1757453697357, "y": 3525}, {"x": 1757453697635, "y": 3525}, {"x": 1757453699947, "y": 829}, {"x": 1757453700631, "y": 829}, {"x": 1757453701170, "y": 829}, {"x": 1757453701676, "y": 829}, {"x": 1757453702143, "y": 829}, {"x": 1757453702669, "y": 829}, {"x": 1757453708278, "y": 34739}, {"x": 1757453709287, "y": 34739}, {"x": 1757453710201, "y": 34739}, {"x": 1757453710883, "y": 34739}, {"x": 1757453711651, "y": 34739}, {"x": 1757453712221, "y": 34739}, {"x": 1757453717131, "y": 14943}, {"x": 1757453718162, "y": 14943}, {"x": 1757453718802, "y": 14943}, {"x": 1757453719521, "y": 14943}, {"x": 1757453782753, "y": 9559}, {"x": 1757453789403, "y": 2648}, {"x": 1757453796509, "y": 420}, {"x": 1757453800639, "y": 3529}, {"x": 1757453800995, "y": 3529}, {"x": 1757453801277, "y": 3529}, {"x": 1757453816883, "y": 4496}, {"x": 1757453817468, "y": 4496}, {"x": 1757453818188, "y": 4496}, {"x": 1757453818803, "y": 4496}, {"x": 1757453819023, "y": 4496}, {"x": 1757453822930, "y": 6466}, {"x": 1757453824096, "y": 6466}, {"x": 1757453825183, "y": 6466}, {"x": 1757453825891, "y": 6466}, {"x": 1757453832873, "y": 6167}, {"x": 1757453834216, "y": 6167}, {"x": 1757453834984, "y": 6167}, {"x": 1757453835735, "y": 6167}, {"x": 1757453839863, "y": 8936}, {"x": 1757453841077, "y": 8936}, {"x": 1757453841284, "y": 8936}, {"x": 1757453845075, "y": 3425}, {"x": 1757453845520, "y": 3425}, {"x": 1757453895095, "y": 14569}, {"x": 1757453901733, "y": 1967}, {"x": 1757453908348, "y": 418}, {"x": 1757453911545, "y": 3513}, {"x": 1757453912369, "y": 3513}, {"x": 1757453915657, "y": 956}, {"x": 1757453918458, "y": 520}, {"x": 1757453919187, "y": 520}, {"x": 1757453919691, "y": 520}, {"x": 1757453920228, "y": 520}, {"x": 1757453920745, "y": 520}, {"x": 1757453930569, "y": 17166}, {"x": 1757453932037, "y": 17166}, {"x": 1757453933024, "y": 17166}, {"x": 1757453933809, "y": 17166}, {"x": 1757453934550, "y": 17166}, {"x": 1757453939920, "y": 17929}, {"x": 1757453941484, "y": 17929}, {"x": 1757453942191, "y": 17929}, {"x": 1757453943158, "y": 17929}, {"x": 1757453947325, "y": 4857}, {"x": 1757453948625, "y": 4857}, {"x": 1757454000090, "y": 2098}, {"x": 1757454006900, "y": 2047}, {"x": 1757454010427, "y": 418}, {"x": 1757454015473, "y": 136}, {"x": 1757454019298, "y": 1986}, {"x": 1757454025687, "y": 2788}, {"x": 1757454040879, "y": 324}, {"x": 1757455062484, "y": 45451}, {"x": 1757455064400, "y": 45451}, {"x": 1757455067939, "y": 328}, {"x": 1757455075491, "y": 140}, {"x": 1757455085169, "y": 136}, {"x": 1757455092133, "y": 140}, {"x": 1757455101482, "y": 134}, {"x": 1757455111698, "y": 253}, {"x": 1757455221125, "y": 448}, {"x": 1757455227879, "y": 164}, {"x": 1757455230259, "y": 164}, {"x": 1757455234194, "y": 355}, {"x": 1757455241499, "y": 327}, {"x": 1757455245676, "y": 319}, {"x": 1757455252114, "y": 572}, {"x": 1757455259981, "y": 6620}, {"x": 1757455263704, "y": 317}, {"x": 1757455314991, "y": 148}, {"x": 1757455316719, "y": 148}, {"x": 1757455327113, "y": 219}, {"x": 1757455328140, "y": 219}, {"x": 1757455336540, "y": 147}, {"x": 1757455337858, "y": 147}, {"x": 1757455342611, "y": 185}, {"x": 1757455343748, "y": 185}, {"x": 1757455352009, "y": 316}, {"x": 1757455353290, "y": 316}, {"x": 1757455369204, "y": 233}, {"x": 1757455371384, "y": 233}, {"x": 1757455377585, "y": 615}, {"x": 1757455463872, "y": 177}, {"x": 1757455501608, "y": 158}, {"x": 1757455502774, "y": 158}, {"x": 1757455505978, "y": 319}, {"x": 1757455506843, "y": 319}, {"x": 1757455552670, "y": 120}, {"x": 1757455569035, "y": 412}, {"x": 1757455570950, "y": 412}, {"x": 1757455592479, "y": 273}, {"x": 1757455598236, "y": 114}, {"x": 1757455604417, "y": 191}, {"x": 1757455613388, "y": 120}, {"x": 1757455619375, "y": 183}, {"x": 1757455627788, "y": 254}, {"x": 1757455793519, "y": 235}, {"x": 1757455825039, "y": 289}, {"x": 1757455835565, "y": 1726}, {"x": 1757455907914, "y": 108}, {"x": 1757455940621, "y": 26}, {"x": 1757455971312, "y": 106}, {"x": 1757455983121, "y": 1280}, {"x": 1757455988853, "y": 253}, {"x": 1757456140544, "y": 1699}, {"x": 1757456142653, "y": 1699}, {"x": 1757456155087, "y": 482}, {"x": 1757456319545, "y": 3489}, {"x": 1757456554805, "y": 605}, {"x": 1757456622731, "y": 166}, {"x": 1757456702189, "y": 19}, {"x": 1757459063579, "y": 70611}, {"x": 1757459203659, "y": 370}, {"x": 1757459210502, "y": 363}, {"x": 1757459219879, "y": 180}, {"x": 1757459228208, "y": 369}, {"x": 1757459234046, "y": 364}, {"x": 1757459240890, "y": 853}, {"x": 1757459315108, "y": 116}, {"x": 1757459322879, "y": 389}, {"x": 1757459329512, "y": 363}, {"x": 1757459336960, "y": 131}, {"x": 1757459363478, "y": 542}, {"x": 1757459364802, "y": 542}, {"x": 1757459370338, "y": 663}, {"x": 1757461674740, "y": 75370}, {"x": 1757461681072, "y": 349}, {"x": 1757461831949, "y": 327}, {"x": 1757461832754, "y": 327}, {"x": 1757461876983, "y": 243}, {"x": 1757461882362, "y": 349}, {"x": 1757461902546, "y": 209}, {"x": 1757461910476, "y": 334}, {"x": 1757461915848, "y": 906}, {"x": 1757461923744, "y": 1423}, {"x": 1757461930732, "y": 350}, {"x": 1757461940228, "y": 134}, {"x": 1757461950304, "y": 1115}, {"x": 1757461952052, "y": 1115}, {"x": 1757461973340, "y": 221}, {"x": 1757461985821, "y": 306}, {"x": 1757461991916, "y": 306}, {"x": 1757462005846, "y": 598}, {"x": 1757462006330, "y": 598}, {"x": 1757462019732, "y": 1244}, {"x": 1757462051458, "y": 1275}, {"x": 1757462062644, "y": 283}, {"x": 1757463014007, "y": 85242}, {"x": 1757463024015, "y": 1826}, {"x": 1757463025328, "y": 1826}, {"x": 1757463044553, "y": 195}, {"x": 1757463045132, "y": 195}, {"x": 1757463054280, "y": 2761}, {"x": 1757463055325, "y": 2761}, {"x": 1757463068211, "y": 247}, {"x": 1757463112253, "y": 209}, {"x": 1757463112612, "y": 209}, {"x": 1757463124374, "y": 190}, {"x": 1757463125004, "y": 190}, {"x": 1757463164153, "y": 359}, {"x": 1757463164249, "y": 359}, {"x": 1757463177490, "y": 1165}, {"x": 1757463179162, "y": 1165}, {"x": 1757463201450, "y": 165}, {"x": 1757463202678, "y": 165}, {"x": 1757463216029, "y": 1229}, {"x": 1757463217333, "y": 1229}, {"x": 1757463226527, "y": 1244}, {"x": 1757465651138, "y": 95048}, {"x": 1757465657246, "y": 221}, {"x": 1757465662996, "y": 156}, {"x": 1757465675005, "y": 148}, {"x": 1757465683681, "y": 117}, {"x": 1757465705684, "y": 117}, {"x": 1757465714017, "y": 282}, {"x": 1757465861682, "y": 122}, {"x": 1757465868423, "y": 306}, {"x": 1757466220699, "y": 96622}, {"x": 1757466226664, "y": 223}, {"x": 1757466233432, "y": 500}, {"x": 1757466239419, "y": 375}, {"x": 1757466254272, "y": 106}, {"x": 1757466262294, "y": 136}, {"x": 1757466274178, "y": 209}, {"x": 1757466285878, "y": 122}, {"x": 1757466293097, "y": 307}];
+    const CUMULATIVE_TIME_DATA = [{"x": 1757453564730, "y": 13232}, {"x": 1757453565908, "y": 26464}, {"x": 1757453573518, "y": 26608}, {"x": 1757453574530, "y": 26752}, {"x": 1757453577980, "y": 27014}, {"x": 1757453581139, "y": 32562}, {"x": 1757453585428, "y": 38110}, {"x": 1757453590583, "y": 38567}, {"x": 1757453596898, "y": 39178}, {"x": 1757453599690, "y": 53651}, {"x": 1757453599984, "y": 68124}, {"x": 1757453603349, "y": 68981}, {"x": 1757453603825, "y": 69838}, {"x": 1757453604355, "y": 70695}, {"x": 1757453605278, "y": 71552}, {"x": 1757453606352, "y": 72409}, {"x": 1757453607147, "y": 73266}, {"x": 1757453607258, "y": 74123}, {"x": 1757453612252, "y": 92889}, {"x": 1757453613740, "y": 111655}, {"x": 1757453614770, "y": 130421}, {"x": 1757453616488, "y": 149187}, {"x": 1757453617917, "y": 167953}, {"x": 1757453618200, "y": 186719}, {"x": 1757453618349, "y": 205485}, {"x": 1757453679865, "y": 225389}, {"x": 1757453686356, "y": 227182}, {"x": 1757453694008, "y": 227629}, {"x": 1757453697357, "y": 231259}, {"x": 1757453697635, "y": 234889}, {"x": 1757453699947, "y": 236079}, {"x": 1757453700631, "y": 237269}, {"x": 1757453701170, "y": 238459}, {"x": 1757453701676, "y": 239649}, {"x": 1757453702143, "y": 240839}, {"x": 1757453702669, "y": 242029}, {"x": 1757453708278, "y": 277133}, {"x": 1757453709287, "y": 312237}, {"x": 1757453710201, "y": 347341}, {"x": 1757453710883, "y": 382445}, {"x": 1757453711651, "y": 417549}, {"x": 1757453712221, "y": 452653}, {"x": 1757453717131, "y": 467824}, {"x": 1757453718162, "y": 482995}, {"x": 1757453718802, "y": 498166}, {"x": 1757453719521, "y": 513337}, {"x": 1757453782753, "y": 525331}, {"x": 1757453789403, "y": 528005}, {"x": 1757453796509, "y": 528450}, {"x": 1757453800639, "y": 532111}, {"x": 1757453800995, "y": 535772}, {"x": 1757453801277, "y": 539433}, {"x": 1757453816883, "y": 544283}, {"x": 1757453817468, "y": 549133}, {"x": 1757453818188, "y": 553983}, {"x": 1757453818803, "y": 558833}, {"x": 1757453819023, "y": 563683}, {"x": 1757453822930, "y": 570418}, {"x": 1757453824096, "y": 577153}, {"x": 1757453825183, "y": 583888}, {"x": 1757453825891, "y": 590623}, {"x": 1757453832873, "y": 597050}, {"x": 1757453834216, "y": 603477}, {"x": 1757453834984, "y": 609904}, {"x": 1757453835735, "y": 616331}, {"x": 1757453839863, "y": 625437}, {"x": 1757453841077, "y": 634543}, {"x": 1757453841284, "y": 643649}, {"x": 1757453845075, "y": 647173}, {"x": 1757453845520, "y": 650697}, {"x": 1757453895095, "y": 667017}, {"x": 1757453901733, "y": 669006}, {"x": 1757453908348, "y": 669617}, {"x": 1757453911545, "y": 673271}, {"x": 1757453912369, "y": 676925}, {"x": 1757453915657, "y": 677990}, {"x": 1757453918458, "y": 678826}, {"x": 1757453919187, "y": 679662}, {"x": 1757453919691, "y": 680498}, {"x": 1757453920228, "y": 681334}, {"x": 1757453920745, "y": 682170}, {"x": 1757453930569, "y": 699680}, {"x": 1757453932037, "y": 717190}, {"x": 1757453933024, "y": 734700}, {"x": 1757453933809, "y": 752210}, {"x": 1757453934550, "y": 769720}, {"x": 1757453939920, "y": 787914}, {"x": 1757453941484, "y": 806108}, {"x": 1757453942191, "y": 824302}, {"x": 1757453943158, "y": 842496}, {"x": 1757453947325, "y": 847459}, {"x": 1757453948625, "y": 852422}, {"x": 1757454000090, "y": 856366}, {"x": 1757454006900, "y": 858439}, {"x": 1757454010427, "y": 858884}, {"x": 1757454015473, "y": 859049}, {"x": 1757454019298, "y": 861059}, {"x": 1757454025687, "y": 863869}, {"x": 1757454040879, "y": 864194}, {"x": 1757455062484, "y": 909649}, {"x": 1757455064400, "y": 955104}, {"x": 1757455067939, "y": 955458}, {"x": 1757455075491, "y": 955626}, {"x": 1757455085169, "y": 955790}, {"x": 1757455092133, "y": 956023}, {"x": 1757455101482, "y": 956182}, {"x": 1757455111698, "y": 956436}, {"x": 1757455221125, "y": 956885}, {"x": 1757455227879, "y": 957050}, {"x": 1757455230259, "y": 957215}, {"x": 1757455234194, "y": 957596}, {"x": 1757455241499, "y": 957952}, {"x": 1757455245676, "y": 958296}, {"x": 1757455252114, "y": 958896}, {"x": 1757455259981, "y": 965542}, {"x": 1757455263704, "y": 965945}, {"x": 1757455314991, "y": 966094}, {"x": 1757455316719, "y": 966243}, {"x": 1757455327113, "y": 966463}, {"x": 1757455328140, "y": 966683}, {"x": 1757455336540, "y": 966831}, {"x": 1757455337858, "y": 966979}, {"x": 1757455342611, "y": 967165}, {"x": 1757455343748, "y": 967351}, {"x": 1757455352009, "y": 967668}, {"x": 1757455353290, "y": 967985}, {"x": 1757455369204, "y": 968219}, {"x": 1757455371384, "y": 968453}, {"x": 1757455377585, "y": 969237}, {"x": 1757455463872, "y": 969415}, {"x": 1757455501608, "y": 969577}, {"x": 1757455502774, "y": 969739}, {"x": 1757455505978, "y": 970059}, {"x": 1757455506843, "y": 970379}, {"x": 1757455552670, "y": 970738}, {"x": 1757455569035, "y": 971151}, {"x": 1757455570950, "y": 971730}, {"x": 1757455592479, "y": 972004}, {"x": 1757455598236, "y": 972146}, {"x": 1757455604417, "y": 972365}, {"x": 1757455613388, "y": 972640}, {"x": 1757455619375, "y": 972847}, {"x": 1757455627788, "y": 973102}, {"x": 1757455793519, "y": 973467}, {"x": 1757455825039, "y": 973783}, {"x": 1757455835565, "y": 975534}, {"x": 1757455907914, "y": 975668}, {"x": 1757455940621, "y": 975698}, {"x": 1757455971312, "y": 977046}, {"x": 1757455983121, "y": 978348}, {"x": 1757455988853, "y": 978602}, {"x": 1757456140544, "y": 980302}, {"x": 1757456142653, "y": 982002}, {"x": 1757456155087, "y": 982486}, {"x": 1757456319545, "y": 985986}, {"x": 1757456554805, "y": 986592}, {"x": 1757456622731, "y": 986760}, {"x": 1757456702189, "y": 986780}, {"x": 1757459063579, "y": 1057392}, {"x": 1757459203659, "y": 1057763}, {"x": 1757459210502, "y": 1058156}, {"x": 1757459219879, "y": 1058376}, {"x": 1757459228208, "y": 1058770}, {"x": 1757459234046, "y": 1059161}, {"x": 1757459240890, "y": 1060040}, {"x": 1757459315108, "y": 1060196}, {"x": 1757459322879, "y": 1060611}, {"x": 1757459329512, "y": 1060998}, {"x": 1757459336960, "y": 1061162}, {"x": 1757459363478, "y": 1061705}, {"x": 1757459364802, "y": 1062248}, {"x": 1757459370338, "y": 1062912}, {"x": 1757461674740, "y": 1138283}, {"x": 1757461681072, "y": 1138674}, {"x": 1757461831949, "y": 1139002}, {"x": 1757461832754, "y": 1139330}, {"x": 1757461876983, "y": 1139574}, {"x": 1757461882362, "y": 1139964}, {"x": 1757461902546, "y": 1140201}, {"x": 1757461910476, "y": 1140565}, {"x": 1757461915848, "y": 1141496}, {"x": 1757461923744, "y": 1142954}, {"x": 1757461930732, "y": 1143342}, {"x": 1757461940228, "y": 1143508}, {"x": 1757461950304, "y": 1144624}, {"x": 1757461952052, "y": 1145740}, {"x": 1757461973340, "y": 1145986}, {"x": 1757461985821, "y": 1146293}, {"x": 1757461991916, "y": 1146600}, {"x": 1757462005846, "y": 1147202}, {"x": 1757462006330, "y": 1147804}, {"x": 1757462019732, "y": 1149093}, {"x": 1757462051458, "y": 1150394}, {"x": 1757462062644, "y": 1150678}, {"x": 1757463014007, "y": 1236011}, {"x": 1757463024015, "y": 1237838}, {"x": 1757463025328, "y": 1239665}, {"x": 1757463044553, "y": 1239862}, {"x": 1757463045132, "y": 1240059}, {"x": 1757463054280, "y": 1242821}, {"x": 1757463055325, "y": 1245583}, {"x": 1757463068211, "y": 1245865}, {"x": 1757463112253, "y": 1246076}, {"x": 1757463112612, "y": 1246287}, {"x": 1757463124374, "y": 1246479}, {"x": 1757463125004, "y": 1246671}, {"x": 1757463164153, "y": 1247031}, {"x": 1757463164249, "y": 1247391}, {"x": 1757463177490, "y": 1248557}, {"x": 1757463179162, "y": 1249723}, {"x": 1757463201450, "y": 1249890}, {"x": 1757463202678, "y": 1250057}, {"x": 1757463216029, "y": 1251287}, {"x": 1757463217333, "y": 1252517}, {"x": 1757463226527, "y": 1253762}, {"x": 1757465651138, "y": 1348811}, {"x": 1757465657246, "y": 1349068}, {"x": 1757465662996, "y": 1349258}, {"x": 1757465675005, "y": 1349444}, {"x": 1757465683681, "y": 1349599}, {"x": 1757465705684, "y": 1349751}, {"x": 1757465714017, "y": 1350108}, {"x": 1757465861682, "y": 1350256}, {"x": 1757465868423, "y": 1350563}, {"x": 1757466220699, "y": 1447190}, {"x": 1757466226664, "y": 1447447}, {"x": 1757466233432, "y": 1447972}, {"x": 1757466239419, "y": 1448377}, {"x": 1757466254272, "y": 1448514}, {"x": 1757466262294, "y": 1448674}, {"x": 1757466274178, "y": 1448931}, {"x": 1757466285878, "y": 1449089}, {"x": 1757466293097, "y": 1449397}];
+    const CONTEXT_MSG_DATA = [{"x": 4, "y": 13229, "ts": "2025-09-10T04:32:44.730Z"}, {"x": 5, "y": 13229, "ts": "2025-09-10T04:32:45.908Z"}, {"x": 7, "y": 143, "ts": "2025-09-10T04:32:53.518Z"}, {"x": 8, "y": 143, "ts": "2025-09-10T04:32:54.530Z"}, {"x": 10, "y": 172, "ts": "2025-09-10T04:32:57.980Z"}, {"x": 12, "y": 5546, "ts": "2025-09-10T04:33:01.139Z"}, {"x": 13, "y": 5546, "ts": "2025-09-10T04:33:05.428Z"}, {"x": 15, "y": 435, "ts": "2025-09-10T04:33:10.583Z"}, {"x": 17, "y": 424, "ts": "2025-09-10T04:33:16.898Z"}, {"x": 19, "y": 14382, "ts": "2025-09-10T04:33:19.690Z"}, {"x": 20, "y": 14382, "ts": "2025-09-10T04:33:19.984Z"}, {"x": 22, "y": 449, "ts": "2025-09-10T04:33:23.349Z"}, {"x": 23, "y": 449, "ts": "2025-09-10T04:33:23.825Z"}, {"x": 24, "y": 449, "ts": "2025-09-10T04:33:24.355Z"}, {"x": 25, "y": 449, "ts": "2025-09-10T04:33:25.278Z"}, {"x": 26, "y": 449, "ts": "2025-09-10T04:33:26.352Z"}, {"x": 27, "y": 449, "ts": "2025-09-10T04:33:27.147Z"}, {"x": 28, "y": 449, "ts": "2025-09-10T04:33:27.258Z"}, {"x": 35, "y": 18360, "ts": "2025-09-10T04:33:32.252Z"}, {"x": 36, "y": 18360, "ts": "2025-09-10T04:33:33.740Z"}, {"x": 37, "y": 18360, "ts": "2025-09-10T04:33:34.770Z"}, {"x": 38, "y": 18360, "ts": "2025-09-10T04:33:36.488Z"}, {"x": 39, "y": 18360, "ts": "2025-09-10T04:33:37.917Z"}, {"x": 40, "y": 18360, "ts": "2025-09-10T04:33:38.200Z"}, {"x": 41, "y": 18360, "ts": "2025-09-10T04:33:38.349Z"}, {"x": 48, "y": 18336, "ts": "2025-09-10T04:34:39.865Z"}, {"x": 50, "y": 1767, "ts": "2025-09-10T04:34:46.356Z"}, {"x": 52, "y": 422, "ts": "2025-09-10T04:34:54.008Z"}, {"x": 54, "y": 3525, "ts": "2025-09-10T04:34:57.357Z"}, {"x": 55, "y": 3525, "ts": "2025-09-10T04:34:57.635Z"}, {"x": 57, "y": 829, "ts": "2025-09-10T04:34:59.947Z"}, {"x": 58, "y": 829, "ts": "2025-09-10T04:35:00.631Z"}, {"x": 59, "y": 829, "ts": "2025-09-10T04:35:01.170Z"}, {"x": 60, "y": 829, "ts": "2025-09-10T04:35:01.676Z"}, {"x": 61, "y": 829, "ts": "2025-09-10T04:35:02.143Z"}, {"x": 62, "y": 829, "ts": "2025-09-10T04:35:02.669Z"}, {"x": 68, "y": 34739, "ts": "2025-09-10T04:35:08.278Z"}, {"x": 69, "y": 34739, "ts": "2025-09-10T04:35:09.287Z"}, {"x": 70, "y": 34739, "ts": "2025-09-10T04:35:10.201Z"}, {"x": 71, "y": 34739, "ts": "2025-09-10T04:35:10.883Z"}, {"x": 72, "y": 34739, "ts": "2025-09-10T04:35:11.651Z"}, {"x": 73, "y": 34739, "ts": "2025-09-10T04:35:12.221Z"}, {"x": 79, "y": 14943, "ts": "2025-09-10T04:35:17.131Z"}, {"x": 80, "y": 14943, "ts": "2025-09-10T04:35:18.162Z"}, {"x": 81, "y": 14943, "ts": "2025-09-10T04:35:18.802Z"}, {"x": 82, "y": 14943, "ts": "2025-09-10T04:35:19.521Z"}, {"x": 86, "y": 9559, "ts": "2025-09-10T04:36:22.753Z"}, {"x": 88, "y": 2648, "ts": "2025-09-10T04:36:29.403Z"}, {"x": 90, "y": 420, "ts": "2025-09-10T04:36:36.509Z"}, {"x": 92, "y": 3529, "ts": "2025-09-10T04:36:40.639Z"}, {"x": 93, "y": 3529, "ts": "2025-09-10T04:36:40.995Z"}, {"x": 94, "y": 3529, "ts": "2025-09-10T04:36:41.277Z"}, {"x": 97, "y": 4496, "ts": "2025-09-10T04:36:56.883Z"}, {"x": 98, "y": 4496, "ts": "2025-09-10T04:36:57.468Z"}, {"x": 99, "y": 4496, "ts": "2025-09-10T04:36:58.188Z"}, {"x": 100, "y": 4496, "ts": "2025-09-10T04:36:58.803Z"}, {"x": 101, "y": 4496, "ts": "2025-09-10T04:36:59.023Z"}, {"x": 106, "y": 6466, "ts": "2025-09-10T04:37:02.930Z"}, {"x": 107, "y": 6466, "ts": "2025-09-10T04:37:04.096Z"}, {"x": 108, "y": 6466, "ts": "2025-09-10T04:37:05.183Z"}, {"x": 109, "y": 6466, "ts": "2025-09-10T04:37:05.891Z"}, {"x": 113, "y": 6167, "ts": "2025-09-10T04:37:12.873Z"}, {"x": 114, "y": 6167, "ts": "2025-09-10T04:37:14.216Z"}, {"x": 115, "y": 6167, "ts": "2025-09-10T04:37:14.984Z"}, {"x": 116, "y": 6167, "ts": "2025-09-10T04:37:15.735Z"}, {"x": 120, "y": 8936, "ts": "2025-09-10T04:37:19.863Z"}, {"x": 121, "y": 8936, "ts": "2025-09-10T04:37:21.077Z"}, {"x": 122, "y": 8936, "ts": "2025-09-10T04:37:21.284Z"}, {"x": 125, "y": 3425, "ts": "2025-09-10T04:37:25.075Z"}, {"x": 126, "y": 3425, "ts": "2025-09-10T04:37:25.520Z"}, {"x": 128, "y": 14569, "ts": "2025-09-10T04:38:15.095Z"}, {"x": 130, "y": 1967, "ts": "2025-09-10T04:38:21.733Z"}, {"x": 132, "y": 418, "ts": "2025-09-10T04:38:28.348Z"}, {"x": 134, "y": 3513, "ts": "2025-09-10T04:38:31.545Z"}, {"x": 135, "y": 3513, "ts": "2025-09-10T04:38:32.369Z"}, {"x": 137, "y": 956, "ts": "2025-09-10T04:38:35.657Z"}, {"x": 139, "y": 520, "ts": "2025-09-10T04:38:38.458Z"}, {"x": 140, "y": 520, "ts": "2025-09-10T04:38:39.187Z"}, {"x": 141, "y": 520, "ts": "2025-09-10T04:38:39.691Z"}, {"x": 142, "y": 520, "ts": "2025-09-10T04:38:40.228Z"}, {"x": 143, "y": 520, "ts": "2025-09-10T04:38:40.745Z"}, {"x": 148, "y": 17166, "ts": "2025-09-10T04:38:50.569Z"}, {"x": 149, "y": 17166, "ts": "2025-09-10T04:38:52.037Z"}, {"x": 150, "y": 17166, "ts": "2025-09-10T04:38:53.024Z"}, {"x": 151, "y": 17166, "ts": "2025-09-10T04:38:53.809Z"}, {"x": 152, "y": 17166, "ts": "2025-09-10T04:38:54.550Z"}, {"x": 157, "y": 17929, "ts": "2025-09-10T04:38:59.920Z"}, {"x": 158, "y": 17929, "ts": "2025-09-10T04:39:01.484Z"}, {"x": 159, "y": 17929, "ts": "2025-09-10T04:39:02.191Z"}, {"x": 160, "y": 17929, "ts": "2025-09-10T04:39:03.158Z"}, {"x": 164, "y": 4857, "ts": "2025-09-10T04:39:07.325Z"}, {"x": 165, "y": 4857, "ts": "2025-09-10T04:39:08.625Z"}, {"x": 167, "y": 2098, "ts": "2025-09-10T04:40:00.090Z"}, {"x": 169, "y": 2047, "ts": "2025-09-10T04:40:06.900Z"}, {"x": 171, "y": 418, "ts": "2025-09-10T04:40:10.427Z"}, {"x": 173, "y": 136, "ts": "2025-09-10T04:40:15.473Z"}, {"x": 175, "y": 1986, "ts": "2025-09-10T04:40:19.298Z"}, {"x": 177, "y": 2788, "ts": "2025-09-10T04:40:25.687Z"}, {"x": 179, "y": 324, "ts": "2025-09-10T04:40:40.879Z"}, {"x": 181, "y": 45451, "ts": "2025-09-10T04:57:42.484Z"}, {"x": 182, "y": 45451, "ts": "2025-09-10T04:57:44.400Z"}, {"x": 184, "y": 328, "ts": "2025-09-10T04:57:47.939Z"}, {"x": 186, "y": 140, "ts": "2025-09-10T04:57:55.491Z"}, {"x": 188, "y": 136, "ts": "2025-09-10T04:58:05.169Z"}, {"x": 190, "y": 140, "ts": "2025-09-10T04:58:12.133Z"}, {"x": 192, "y": 134, "ts": "2025-09-10T04:58:21.482Z"}, {"x": 194, "y": 253, "ts": "2025-09-10T04:58:31.698Z"}, {"x": 196, "y": 448, "ts": "2025-09-10T05:00:21.125Z"}, {"x": 198, "y": 164, "ts": "2025-09-10T05:00:27.879Z"}, {"x": 199, "y": 164, "ts": "2025-09-10T05:00:30.259Z"}, {"x": 201, "y": 355, "ts": "2025-09-10T05:00:34.194Z"}, {"x": 203, "y": 327, "ts": "2025-09-10T05:00:41.499Z"}, {"x": 205, "y": 319, "ts": "2025-09-10T05:00:45.676Z"}, {"x": 207, "y": 572, "ts": "2025-09-10T05:00:52.114Z"}, {"x": 209, "y": 6620, "ts": "2025-09-10T05:00:59.981Z"}, {"x": 211, "y": 317, "ts": "2025-09-10T05:01:03.704Z"}, {"x": 213, "y": 148, "ts": "2025-09-10T05:01:54.991Z"}, {"x": 214, "y": 148, "ts": "2025-09-10T05:01:56.719Z"}, {"x": 216, "y": 219, "ts": "2025-09-10T05:02:07.113Z"}, {"x": 217, "y": 219, "ts": "2025-09-10T05:02:08.140Z"}, {"x": 219, "y": 147, "ts": "2025-09-10T05:02:16.540Z"}, {"x": 220, "y": 147, "ts": "2025-09-10T05:02:17.858Z"}, {"x": 222, "y": 185, "ts": "2025-09-10T05:02:22.611Z"}, {"x": 223, "y": 185, "ts": "2025-09-10T05:02:23.748Z"}, {"x": 225, "y": 316, "ts": "2025-09-10T05:02:32.009Z"}, {"x": 226, "y": 316, "ts": "2025-09-10T05:02:33.290Z"}, {"x": 228, "y": 233, "ts": "2025-09-10T05:02:49.204Z"}, {"x": 229, "y": 233, "ts": "2025-09-10T05:02:51.384Z"}, {"x": 231, "y": 615, "ts": "2025-09-10T05:02:57.585Z"}, {"x": 233, "y": 177, "ts": "2025-09-10T05:04:23.872Z"}, {"x": 235, "y": 158, "ts": "2025-09-10T05:05:01.608Z"}, {"x": 236, "y": 158, "ts": "2025-09-10T05:05:02.774Z"}, {"x": 238, "y": 319, "ts": "2025-09-10T05:05:05.978Z"}, {"x": 239, "y": 319, "ts": "2025-09-10T05:05:06.843Z"}, {"x": 241, "y": 120, "ts": "2025-09-10T05:05:52.670Z"}, {"x": 243, "y": 412, "ts": "2025-09-10T05:06:09.035Z"}, {"x": 244, "y": 412, "ts": "2025-09-10T05:06:10.950Z"}, {"x": 248, "y": 273, "ts": "2025-09-10T05:06:32.479Z"}, {"x": 250, "y": 114, "ts": "2025-09-10T05:06:38.236Z"}, {"x": 252, "y": 191, "ts": "2025-09-10T05:06:44.417Z"}, {"x": 254, "y": 120, "ts": "2025-09-10T05:06:53.388Z"}, {"x": 256, "y": 183, "ts": "2025-09-10T05:06:59.375Z"}, {"x": 258, "y": 254, "ts": "2025-09-10T05:07:07.788Z"}, {"x": 260, "y": 235, "ts": "2025-09-10T05:09:53.519Z"}, {"x": 262, "y": 289, "ts": "2025-09-10T05:10:25.039Z"}, {"x": 264, "y": 1726, "ts": "2025-09-10T05:10:35.565Z"}, {"x": 266, "y": 108, "ts": "2025-09-10T05:11:47.914Z"}, {"x": 270, "y": 26, "ts": "2025-09-10T05:12:20.621Z"}, {"x": 272, "y": 106, "ts": "2025-09-10T05:12:51.312Z"}, {"x": 274, "y": 1280, "ts": "2025-09-10T05:13:03.121Z"}, {"x": 276, "y": 253, "ts": "2025-09-10T05:13:08.853Z"}, {"x": 278, "y": 1699, "ts": "2025-09-10T05:15:40.544Z"}, {"x": 279, "y": 1699, "ts": "2025-09-10T05:15:42.653Z"}, {"x": 281, "y": 482, "ts": "2025-09-10T05:15:55.087Z"}, {"x": 283, "y": 3489, "ts": "2025-09-10T05:18:39.545Z"}, {"x": 285, "y": 605, "ts": "2025-09-10T05:22:34.805Z"}, {"x": 287, "y": 166, "ts": "2025-09-10T05:23:42.731Z"}, {"x": 289, "y": 19, "ts": "2025-09-10T05:25:02.189Z"}, {"x": 291, "y": 70611, "ts": "2025-09-10T06:04:23.579Z"}, {"x": 293, "y": 370, "ts": "2025-09-10T06:06:43.659Z"}, {"x": 295, "y": 363, "ts": "2025-09-10T06:06:50.502Z"}, {"x": 297, "y": 180, "ts": "2025-09-10T06:06:59.879Z"}, {"x": 299, "y": 369, "ts": "2025-09-10T06:07:08.208Z"}, {"x": 301, "y": 364, "ts": "2025-09-10T06:07:14.046Z"}, {"x": 303, "y": 853, "ts": "2025-09-10T06:07:20.890Z"}, {"x": 305, "y": 116, "ts": "2025-09-10T06:08:35.108Z"}, {"x": 307, "y": 389, "ts": "2025-09-10T06:08:42.879Z"}, {"x": 309, "y": 363, "ts": "2025-09-10T06:08:49.512Z"}, {"x": 311, "y": 131, "ts": "2025-09-10T06:08:56.960Z"}, {"x": 313, "y": 542, "ts": "2025-09-10T06:09:23.478Z"}, {"x": 314, "y": 542, "ts": "2025-09-10T06:09:24.802Z"}, {"x": 316, "y": 663, "ts": "2025-09-10T06:09:30.338Z"}, {"x": 318, "y": 75370, "ts": "2025-09-10T06:47:54.740Z"}, {"x": 320, "y": 349, "ts": "2025-09-10T06:48:01.072Z"}, {"x": 322, "y": 327, "ts": "2025-09-10T06:50:31.949Z"}, {"x": 323, "y": 327, "ts": "2025-09-10T06:50:32.754Z"}, {"x": 327, "y": 243, "ts": "2025-09-10T06:51:16.983Z"}, {"x": 329, "y": 349, "ts": "2025-09-10T06:51:22.362Z"}, {"x": 331, "y": 209, "ts": "2025-09-10T06:51:42.546Z"}, {"x": 333, "y": 334, "ts": "2025-09-10T06:51:50.476Z"}, {"x": 335, "y": 906, "ts": "2025-09-10T06:51:55.848Z"}, {"x": 337, "y": 1423, "ts": "2025-09-10T06:52:03.744Z"}, {"x": 339, "y": 350, "ts": "2025-09-10T06:52:10.732Z"}, {"x": 341, "y": 134, "ts": "2025-09-10T06:52:20.228Z"}, {"x": 343, "y": 1115, "ts": "2025-09-10T06:52:30.304Z"}, {"x": 344, "y": 1115, "ts": "2025-09-10T06:52:32.052Z"}, {"x": 346, "y": 221, "ts": "2025-09-10T06:52:53.340Z"}, {"x": 348, "y": 306, "ts": "2025-09-10T06:53:05.821Z"}, {"x": 349, "y": 306, "ts": "2025-09-10T06:53:11.916Z"}, {"x": 351, "y": 598, "ts": "2025-09-10T06:53:25.846Z"}, {"x": 352, "y": 598, "ts": "2025-09-10T06:53:26.330Z"}, {"x": 354, "y": 1244, "ts": "2025-09-10T06:53:39.732Z"}, {"x": 356, "y": 1275, "ts": "2025-09-10T06:54:11.458Z"}, {"x": 358, "y": 283, "ts": "2025-09-10T06:54:22.644Z"}, {"x": 360, "y": 85242, "ts": "2025-09-10T07:10:14.007Z"}, {"x": 362, "y": 1826, "ts": "2025-09-10T07:10:24.015Z"}, {"x": 363, "y": 1826, "ts": "2025-09-10T07:10:25.328Z"}, {"x": 365, "y": 195, "ts": "2025-09-10T07:10:44.553Z"}, {"x": 366, "y": 195, "ts": "2025-09-10T07:10:45.132Z"}, {"x": 368, "y": 2761, "ts": "2025-09-10T07:10:54.280Z"}, {"x": 369, "y": 2761, "ts": "2025-09-10T07:10:55.325Z"}, {"x": 371, "y": 247, "ts": "2025-09-10T07:11:08.211Z"}, {"x": 375, "y": 209, "ts": "2025-09-10T07:11:52.253Z"}, {"x": 376, "y": 209, "ts": "2025-09-10T07:11:52.612Z"}, {"x": 378, "y": 190, "ts": "2025-09-10T07:12:04.374Z"}, {"x": 379, "y": 190, "ts": "2025-09-10T07:12:05.004Z"}, {"x": 383, "y": 359, "ts": "2025-09-10T07:12:44.153Z"}, {"x": 384, "y": 359, "ts": "2025-09-10T07:12:44.249Z"}, {"x": 386, "y": 1165, "ts": "2025-09-10T07:12:57.490Z"}, {"x": 387, "y": 1165, "ts": "2025-09-10T07:12:59.162Z"}, {"x": 389, "y": 165, "ts": "2025-09-10T07:13:21.450Z"}, {"x": 390, "y": 165, "ts": "2025-09-10T07:13:22.678Z"}, {"x": 392, "y": 1229, "ts": "2025-09-10T07:13:36.029Z"}, {"x": 393, "y": 1229, "ts": "2025-09-10T07:13:37.333Z"}, {"x": 395, "y": 1244, "ts": "2025-09-10T07:13:46.527Z"}, {"x": 397, "y": 95048, "ts": "2025-09-10T07:54:11.138Z"}, {"x": 399, "y": 221, "ts": "2025-09-10T07:54:17.246Z"}, {"x": 401, "y": 156, "ts": "2025-09-10T07:54:22.996Z"}, {"x": 403, "y": 148, "ts": "2025-09-10T07:54:35.005Z"}, {"x": 405, "y": 117, "ts": "2025-09-10T07:54:43.681Z"}, {"x": 407, "y": 117, "ts": "2025-09-10T07:55:05.684Z"}, {"x": 409, "y": 282, "ts": "2025-09-10T07:55:14.017Z"}, {"x": 411, "y": 122, "ts": "2025-09-10T07:57:41.682Z"}, {"x": 413, "y": 306, "ts": "2025-09-10T07:57:48.423Z"}, {"x": 415, "y": 96622, "ts": "2025-09-10T08:03:40.699Z"}, {"x": 417, "y": 223, "ts": "2025-09-10T08:03:46.664Z"}, {"x": 419, "y": 500, "ts": "2025-09-10T08:03:53.432Z"}, {"x": 421, "y": 375, "ts": "2025-09-10T08:03:59.419Z"}, {"x": 423, "y": 106, "ts": "2025-09-10T08:04:14.272Z"}, {"x": 425, "y": 136, "ts": "2025-09-10T08:04:22.294Z"}, {"x": 427, "y": 209, "ts": "2025-09-10T08:04:34.178Z"}, {"x": 429, "y": 122, "ts": "2025-09-10T08:04:45.878Z"}, {"x": 431, "y": 307, "ts": "2025-09-10T08:04:53.097Z"}];
+    const CUMULATIVE_MSG_DATA = [{"x": 4, "y": 13232, "ts": "2025-09-10T04:32:44.730Z"}, {"x": 5, "y": 26464, "ts": "2025-09-10T04:32:45.908Z"}, {"x": 7, "y": 26608, "ts": "2025-09-10T04:32:53.518Z"}, {"x": 8, "y": 26752, "ts": "2025-09-10T04:32:54.530Z"}, {"x": 10, "y": 27014, "ts": "2025-09-10T04:32:57.980Z"}, {"x": 12, "y": 32562, "ts": "2025-09-10T04:33:01.139Z"}, {"x": 13, "y": 38110, "ts": "2025-09-10T04:33:05.428Z"}, {"x": 15, "y": 38567, "ts": "2025-09-10T04:33:10.583Z"}, {"x": 17, "y": 39178, "ts": "2025-09-10T04:33:16.898Z"}, {"x": 19, "y": 53651, "ts": "2025-09-10T04:33:19.690Z"}, {"x": 20, "y": 68124, "ts": "2025-09-10T04:33:19.984Z"}, {"x": 22, "y": 68981, "ts": "2025-09-10T04:33:23.349Z"}, {"x": 23, "y": 69838, "ts": "2025-09-10T04:33:23.825Z"}, {"x": 24, "y": 70695, "ts": "2025-09-10T04:33:24.355Z"}, {"x": 25, "y": 71552, "ts": "2025-09-10T04:33:25.278Z"}, {"x": 26, "y": 72409, "ts": "2025-09-10T04:33:26.352Z"}, {"x": 27, "y": 73266, "ts": "2025-09-10T04:33:27.147Z"}, {"x": 28, "y": 74123, "ts": "2025-09-10T04:33:27.258Z"}, {"x": 35, "y": 92889, "ts": "2025-09-10T04:33:32.252Z"}, {"x": 36, "y": 111655, "ts": "2025-09-10T04:33:33.740Z"}, {"x": 37, "y": 130421, "ts": "2025-09-10T04:33:34.770Z"}, {"x": 38, "y": 149187, "ts": "2025-09-10T04:33:36.488Z"}, {"x": 39, "y": 167953, "ts": "2025-09-10T04:33:37.917Z"}, {"x": 40, "y": 186719, "ts": "2025-09-10T04:33:38.200Z"}, {"x": 41, "y": 205485, "ts": "2025-09-10T04:33:38.349Z"}, {"x": 48, "y": 225389, "ts": "2025-09-10T04:34:39.865Z"}, {"x": 50, "y": 227182, "ts": "2025-09-10T04:34:46.356Z"}, {"x": 52, "y": 227629, "ts": "2025-09-10T04:34:54.008Z"}, {"x": 54, "y": 231259, "ts": "2025-09-10T04:34:57.357Z"}, {"x": 55, "y": 234889, "ts": "2025-09-10T04:34:57.635Z"}, {"x": 57, "y": 236079, "ts": "2025-09-10T04:34:59.947Z"}, {"x": 58, "y": 237269, "ts": "2025-09-10T04:35:00.631Z"}, {"x": 59, "y": 238459, "ts": "2025-09-10T04:35:01.170Z"}, {"x": 60, "y": 239649, "ts": "2025-09-10T04:35:01.676Z"}, {"x": 61, "y": 240839, "ts": "2025-09-10T04:35:02.143Z"}, {"x": 62, "y": 242029, "ts": "2025-09-10T04:35:02.669Z"}, {"x": 68, "y": 277133, "ts": "2025-09-10T04:35:08.278Z"}, {"x": 69, "y": 312237, "ts": "2025-09-10T04:35:09.287Z"}, {"x": 70, "y": 347341, "ts": "2025-09-10T04:35:10.201Z"}, {"x": 71, "y": 382445, "ts": "2025-09-10T04:35:10.883Z"}, {"x": 72, "y": 417549, "ts": "2025-09-10T04:35:11.651Z"}, {"x": 73, "y": 452653, "ts": "2025-09-10T04:35:12.221Z"}, {"x": 79, "y": 467824, "ts": "2025-09-10T04:35:17.131Z"}, {"x": 80, "y": 482995, "ts": "2025-09-10T04:35:18.162Z"}, {"x": 81, "y": 498166, "ts": "2025-09-10T04:35:18.802Z"}, {"x": 82, "y": 513337, "ts": "2025-09-10T04:35:19.521Z"}, {"x": 86, "y": 525331, "ts": "2025-09-10T04:36:22.753Z"}, {"x": 88, "y": 528005, "ts": "2025-09-10T04:36:29.403Z"}, {"x": 90, "y": 528450, "ts": "2025-09-10T04:36:36.509Z"}, {"x": 92, "y": 532111, "ts": "2025-09-10T04:36:40.639Z"}, {"x": 93, "y": 535772, "ts": "2025-09-10T04:36:40.995Z"}, {"x": 94, "y": 539433, "ts": "2025-09-10T04:36:41.277Z"}, {"x": 97, "y": 544283, "ts": "2025-09-10T04:36:56.883Z"}, {"x": 98, "y": 549133, "ts": "2025-09-10T04:36:57.468Z"}, {"x": 99, "y": 553983, "ts": "2025-09-10T04:36:58.188Z"}, {"x": 100, "y": 558833, "ts": "2025-09-10T04:36:58.803Z"}, {"x": 101, "y": 563683, "ts": "2025-09-10T04:36:59.023Z"}, {"x": 106, "y": 570418, "ts": "2025-09-10T04:37:02.930Z"}, {"x": 107, "y": 577153, "ts": "2025-09-10T04:37:04.096Z"}, {"x": 108, "y": 583888, "ts": "2025-09-10T04:37:05.183Z"}, {"x": 109, "y": 590623, "ts": "2025-09-10T04:37:05.891Z"}, {"x": 113, "y": 597050, "ts": "2025-09-10T04:37:12.873Z"}, {"x": 114, "y": 603477, "ts": "2025-09-10T04:37:14.216Z"}, {"x": 115, "y": 609904, "ts": "2025-09-10T04:37:14.984Z"}, {"x": 116, "y": 616331, "ts": "2025-09-10T04:37:15.735Z"}, {"x": 120, "y": 625437, "ts": "2025-09-10T04:37:19.863Z"}, {"x": 121, "y": 634543, "ts": "2025-09-10T04:37:21.077Z"}, {"x": 122, "y": 643649, "ts": "2025-09-10T04:37:21.284Z"}, {"x": 125, "y": 647173, "ts": "2025-09-10T04:37:25.075Z"}, {"x": 126, "y": 650697, "ts": "2025-09-10T04:37:25.520Z"}, {"x": 128, "y": 667017, "ts": "2025-09-10T04:38:15.095Z"}, {"x": 130, "y": 669006, "ts": "2025-09-10T04:38:21.733Z"}, {"x": 132, "y": 669617, "ts": "2025-09-10T04:38:28.348Z"}, {"x": 134, "y": 673271, "ts": "2025-09-10T04:38:31.545Z"}, {"x": 135, "y": 676925, "ts": "2025-09-10T04:38:32.369Z"}, {"x": 137, "y": 677990, "ts": "2025-09-10T04:38:35.657Z"}, {"x": 139, "y": 678826, "ts": "2025-09-10T04:38:38.458Z"}, {"x": 140, "y": 679662, "ts": "2025-09-10T04:38:39.187Z"}, {"x": 141, "y": 680498, "ts": "2025-09-10T04:38:39.691Z"}, {"x": 142, "y": 681334, "ts": "2025-09-10T04:38:40.228Z"}, {"x": 143, "y": 682170, "ts": "2025-09-10T04:38:40.745Z"}, {"x": 148, "y": 699680, "ts": "2025-09-10T04:38:50.569Z"}, {"x": 149, "y": 717190, "ts": "2025-09-10T04:38:52.037Z"}, {"x": 150, "y": 734700, "ts": "2025-09-10T04:38:53.024Z"}, {"x": 151, "y": 752210, "ts": "2025-09-10T04:38:53.809Z"}, {"x": 152, "y": 769720, "ts": "2025-09-10T04:38:54.550Z"}, {"x": 157, "y": 787914, "ts": "2025-09-10T04:38:59.920Z"}, {"x": 158, "y": 806108, "ts": "2025-09-10T04:39:01.484Z"}, {"x": 159, "y": 824302, "ts": "2025-09-10T04:39:02.191Z"}, {"x": 160, "y": 842496, "ts": "2025-09-10T04:39:03.158Z"}, {"x": 164, "y": 847459, "ts": "2025-09-10T04:39:07.325Z"}, {"x": 165, "y": 852422, "ts": "2025-09-10T04:39:08.625Z"}, {"x": 167, "y": 856366, "ts": "2025-09-10T04:40:00.090Z"}, {"x": 169, "y": 858439, "ts": "2025-09-10T04:40:06.900Z"}, {"x": 171, "y": 858884, "ts": "2025-09-10T04:40:10.427Z"}, {"x": 173, "y": 859049, "ts": "2025-09-10T04:40:15.473Z"}, {"x": 175, "y": 861059, "ts": "2025-09-10T04:40:19.298Z"}, {"x": 177, "y": 863869, "ts": "2025-09-10T04:40:25.687Z"}, {"x": 179, "y": 864194, "ts": "2025-09-10T04:40:40.879Z"}, {"x": 181, "y": 909649, "ts": "2025-09-10T04:57:42.484Z"}, {"x": 182, "y": 955104, "ts": "2025-09-10T04:57:44.400Z"}, {"x": 184, "y": 955458, "ts": "2025-09-10T04:57:47.939Z"}, {"x": 186, "y": 955626, "ts": "2025-09-10T04:57:55.491Z"}, {"x": 188, "y": 955790, "ts": "2025-09-10T04:58:05.169Z"}, {"x": 190, "y": 956023, "ts": "2025-09-10T04:58:12.133Z"}, {"x": 192, "y": 956182, "ts": "2025-09-10T04:58:21.482Z"}, {"x": 194, "y": 956436, "ts": "2025-09-10T04:58:31.698Z"}, {"x": 196, "y": 956885, "ts": "2025-09-10T05:00:21.125Z"}, {"x": 198, "y": 957050, "ts": "2025-09-10T05:00:27.879Z"}, {"x": 199, "y": 957215, "ts": "2025-09-10T05:00:30.259Z"}, {"x": 201, "y": 957596, "ts": "2025-09-10T05:00:34.194Z"}, {"x": 203, "y": 957952, "ts": "2025-09-10T05:00:41.499Z"}, {"x": 205, "y": 958296, "ts": "2025-09-10T05:00:45.676Z"}, {"x": 207, "y": 958896, "ts": "2025-09-10T05:00:52.114Z"}, {"x": 209, "y": 965542, "ts": "2025-09-10T05:00:59.981Z"}, {"x": 211, "y": 965945, "ts": "2025-09-10T05:01:03.704Z"}, {"x": 213, "y": 966094, "ts": "2025-09-10T05:01:54.991Z"}, {"x": 214, "y": 966243, "ts": "2025-09-10T05:01:56.719Z"}, {"x": 216, "y": 966463, "ts": "2025-09-10T05:02:07.113Z"}, {"x": 217, "y": 966683, "ts": "2025-09-10T05:02:08.140Z"}, {"x": 219, "y": 966831, "ts": "2025-09-10T05:02:16.540Z"}, {"x": 220, "y": 966979, "ts": "2025-09-10T05:02:17.858Z"}, {"x": 222, "y": 967165, "ts": "2025-09-10T05:02:22.611Z"}, {"x": 223, "y": 967351, "ts": "2025-09-10T05:02:23.748Z"}, {"x": 225, "y": 967668, "ts": "2025-09-10T05:02:32.009Z"}, {"x": 226, "y": 967985, "ts": "2025-09-10T05:02:33.290Z"}, {"x": 228, "y": 968219, "ts": "2025-09-10T05:02:49.204Z"}, {"x": 229, "y": 968453, "ts": "2025-09-10T05:02:51.384Z"}, {"x": 231, "y": 969237, "ts": "2025-09-10T05:02:57.585Z"}, {"x": 233, "y": 969415, "ts": "2025-09-10T05:04:23.872Z"}, {"x": 235, "y": 969577, "ts": "2025-09-10T05:05:01.608Z"}, {"x": 236, "y": 969739, "ts": "2025-09-10T05:05:02.774Z"}, {"x": 238, "y": 970059, "ts": "2025-09-10T05:05:05.978Z"}, {"x": 239, "y": 970379, "ts": "2025-09-10T05:05:06.843Z"}, {"x": 241, "y": 970738, "ts": "2025-09-10T05:05:52.670Z"}, {"x": 243, "y": 971151, "ts": "2025-09-10T05:06:09.035Z"}, {"x": 244, "y": 971730, "ts": "2025-09-10T05:06:10.950Z"}, {"x": 248, "y": 972004, "ts": "2025-09-10T05:06:32.479Z"}, {"x": 250, "y": 972146, "ts": "2025-09-10T05:06:38.236Z"}, {"x": 252, "y": 972365, "ts": "2025-09-10T05:06:44.417Z"}, {"x": 254, "y": 972640, "ts": "2025-09-10T05:06:53.388Z"}, {"x": 256, "y": 972847, "ts": "2025-09-10T05:06:59.375Z"}, {"x": 258, "y": 973102, "ts": "2025-09-10T05:07:07.788Z"}, {"x": 260, "y": 973467, "ts": "2025-09-10T05:09:53.519Z"}, {"x": 262, "y": 973783, "ts": "2025-09-10T05:10:25.039Z"}, {"x": 264, "y": 975534, "ts": "2025-09-10T05:10:35.565Z"}, {"x": 266, "y": 975668, "ts": "2025-09-10T05:11:47.914Z"}, {"x": 270, "y": 975698, "ts": "2025-09-10T05:12:20.621Z"}, {"x": 272, "y": 977046, "ts": "2025-09-10T05:12:51.312Z"}, {"x": 274, "y": 978348, "ts": "2025-09-10T05:13:03.121Z"}, {"x": 276, "y": 978602, "ts": "2025-09-10T05:13:08.853Z"}, {"x": 278, "y": 980302, "ts": "2025-09-10T05:15:40.544Z"}, {"x": 279, "y": 982002, "ts": "2025-09-10T05:15:42.653Z"}, {"x": 281, "y": 982486, "ts": "2025-09-10T05:15:55.087Z"}, {"x": 283, "y": 985986, "ts": "2025-09-10T05:18:39.545Z"}, {"x": 285, "y": 986592, "ts": "2025-09-10T05:22:34.805Z"}, {"x": 287, "y": 986760, "ts": "2025-09-10T05:23:42.731Z"}, {"x": 289, "y": 986780, "ts": "2025-09-10T05:25:02.189Z"}, {"x": 291, "y": 1057392, "ts": "2025-09-10T06:04:23.579Z"}, {"x": 293, "y": 1057763, "ts": "2025-09-10T06:06:43.659Z"}, {"x": 295, "y": 1058156, "ts": "2025-09-10T06:06:50.502Z"}, {"x": 297, "y": 1058376, "ts": "2025-09-10T06:06:59.879Z"}, {"x": 299, "y": 1058770, "ts": "2025-09-10T06:07:08.208Z"}, {"x": 301, "y": 1059161, "ts": "2025-09-10T06:07:14.046Z"}, {"x": 303, "y": 1060040, "ts": "2025-09-10T06:07:20.890Z"}, {"x": 305, "y": 1060196, "ts": "2025-09-10T06:08:35.108Z"}, {"x": 307, "y": 1060611, "ts": "2025-09-10T06:08:42.879Z"}, {"x": 309, "y": 1060998, "ts": "2025-09-10T06:08:49.512Z"}, {"x": 311, "y": 1061162, "ts": "2025-09-10T06:08:56.960Z"}, {"x": 313, "y": 1061705, "ts": "2025-09-10T06:09:23.478Z"}, {"x": 314, "y": 1062248, "ts": "2025-09-10T06:09:24.802Z"}, {"x": 316, "y": 1062912, "ts": "2025-09-10T06:09:30.338Z"}, {"x": 318, "y": 1138283, "ts": "2025-09-10T06:47:54.740Z"}, {"x": 320, "y": 1138674, "ts": "2025-09-10T06:48:01.072Z"}, {"x": 322, "y": 1139002, "ts": "2025-09-10T06:50:31.949Z"}, {"x": 323, "y": 1139330, "ts": "2025-09-10T06:50:32.754Z"}, {"x": 327, "y": 1139574, "ts": "2025-09-10T06:51:16.983Z"}, {"x": 329, "y": 1139964, "ts": "2025-09-10T06:51:22.362Z"}, {"x": 331, "y": 1140201, "ts": "2025-09-10T06:51:42.546Z"}, {"x": 333, "y": 1140565, "ts": "2025-09-10T06:51:50.476Z"}, {"x": 335, "y": 1141496, "ts": "2025-09-10T06:51:55.848Z"}, {"x": 337, "y": 1142954, "ts": "2025-09-10T06:52:03.744Z"}, {"x": 339, "y": 1143342, "ts": "2025-09-10T06:52:10.732Z"}, {"x": 341, "y": 1143508, "ts": "2025-09-10T06:52:20.228Z"}, {"x": 343, "y": 1144624, "ts": "2025-09-10T06:52:30.304Z"}, {"x": 344, "y": 1145740, "ts": "2025-09-10T06:52:32.052Z"}, {"x": 346, "y": 1145986, "ts": "2025-09-10T06:52:53.340Z"}, {"x": 348, "y": 1146293, "ts": "2025-09-10T06:53:05.821Z"}, {"x": 349, "y": 1146600, "ts": "2025-09-10T06:53:11.916Z"}, {"x": 351, "y": 1147202, "ts": "2025-09-10T06:53:25.846Z"}, {"x": 352, "y": 1147804, "ts": "2025-09-10T06:53:26.330Z"}, {"x": 354, "y": 1149093, "ts": "2025-09-10T06:53:39.732Z"}, {"x": 356, "y": 1150394, "ts": "2025-09-10T06:54:11.458Z"}, {"x": 358, "y": 1150678, "ts": "2025-09-10T06:54:22.644Z"}, {"x": 360, "y": 1236011, "ts": "2025-09-10T07:10:14.007Z"}, {"x": 362, "y": 1237838, "ts": "2025-09-10T07:10:24.015Z"}, {"x": 363, "y": 1239665, "ts": "2025-09-10T07:10:25.328Z"}, {"x": 365, "y": 1239862, "ts": "2025-09-10T07:10:44.553Z"}, {"x": 366, "y": 1240059, "ts": "2025-09-10T07:10:45.132Z"}, {"x": 368, "y": 1242821, "ts": "2025-09-10T07:10:54.280Z"}, {"x": 369, "y": 1245583, "ts": "2025-09-10T07:10:55.325Z"}, {"x": 371, "y": 1245865, "ts": "2025-09-10T07:11:08.211Z"}, {"x": 375, "y": 1246076, "ts": "2025-09-10T07:11:52.253Z"}, {"x": 376, "y": 1246287, "ts": "2025-09-10T07:11:52.612Z"}, {"x": 378, "y": 1246479, "ts": "2025-09-10T07:12:04.374Z"}, {"x": 379, "y": 1246671, "ts": "2025-09-10T07:12:05.004Z"}, {"x": 383, "y": 1247031, "ts": "2025-09-10T07:12:44.153Z"}, {"x": 384, "y": 1247391, "ts": "2025-09-10T07:12:44.249Z"}, {"x": 386, "y": 1248557, "ts": "2025-09-10T07:12:57.490Z"}, {"x": 387, "y": 1249723, "ts": "2025-09-10T07:12:59.162Z"}, {"x": 389, "y": 1249890, "ts": "2025-09-10T07:13:21.450Z"}, {"x": 390, "y": 1250057, "ts": "2025-09-10T07:13:22.678Z"}, {"x": 392, "y": 1251287, "ts": "2025-09-10T07:13:36.029Z"}, {"x": 393, "y": 1252517, "ts": "2025-09-10T07:13:37.333Z"}, {"x": 395, "y": 1253762, "ts": "2025-09-10T07:13:46.527Z"}, {"x": 397, "y": 1348811, "ts": "2025-09-10T07:54:11.138Z"}, {"x": 399, "y": 1349068, "ts": "2025-09-10T07:54:17.246Z"}, {"x": 401, "y": 1349258, "ts": "2025-09-10T07:54:22.996Z"}, {"x": 403, "y": 1349444, "ts": "2025-09-10T07:54:35.005Z"}, {"x": 405, "y": 1349599, "ts": "2025-09-10T07:54:43.681Z"}, {"x": 407, "y": 1349751, "ts": "2025-09-10T07:55:05.684Z"}, {"x": 409, "y": 1350108, "ts": "2025-09-10T07:55:14.017Z"}, {"x": 411, "y": 1350256, "ts": "2025-09-10T07:57:41.682Z"}, {"x": 413, "y": 1350563, "ts": "2025-09-10T07:57:48.423Z"}, {"x": 415, "y": 1447190, "ts": "2025-09-10T08:03:40.699Z"}, {"x": 417, "y": 1447447, "ts": "2025-09-10T08:03:46.664Z"}, {"x": 419, "y": 1447972, "ts": "2025-09-10T08:03:53.432Z"}, {"x": 421, "y": 1448377, "ts": "2025-09-10T08:03:59.419Z"}, {"x": 423, "y": 1448514, "ts": "2025-09-10T08:04:14.272Z"}, {"x": 425, "y": 1448674, "ts": "2025-09-10T08:04:22.294Z"}, {"x": 427, "y": 1448931, "ts": "2025-09-10T08:04:34.178Z"}, {"x": 429, "y": 1449089, "ts": "2025-09-10T08:04:45.878Z"}, {"x": 431, "y": 1449397, "ts": "2025-09-10T08:04:53.097Z"}];
+    const USER_MESSAGES_CONTEXT = [{"x": 3, "y": 13229, "message": "read all the docs", "user_msg_index": 1, "total_msg_index": 3, "x_time": 1757453560590, "x_msg": 3, "cost": 0, "duration": "(36s)"}, {"x": 18, "y": 14382, "message": "Read all markdown files in agent_docs/business/ directory and provide a comprehensive understanding of:\n1. Trading patterns and arbitrage detection\n2. VN30 data systems and calculations\n3. Redis data structures\n4. Foreign trading computations\n5. Trading metrics and flows\n6. Vietnamese market indices\n\nFor each document, extract key concepts, business rules, and important technical details. Focus on understanding the core business logic of this quantum trading system.", "user_msg_index": 2, "total_msg_index": 18, "x_time": 1757453596919, "x_msg": 18, "cost": 0, "duration": "(1m 37s)"}, {"x": 53, "y": 3525, "message": "Read all markdown files in agent_docs/technical_docs/ directory and provide comprehensive understanding of:\n1. System architecture and infrastructure\n2. Arbit/unwind detection algorithms and operations\n3. Feature store and memory requirements\n4. MongoDB/ClickHouse sync system\n5. VWAP detection system\n6. M2 deployment and Cronicle configuration\n7. MCP server implementations\n8. Historical backtesting systems\n\nExtract key technical details, algorithms, performance metrics, and operational procedures.", "user_msg_index": 3, "total_msg_index": 53, "x_time": 1757453694045, "x_msg": 53, "cost": 0, "duration": "(1m 42s)"}, {"x": 91, "y": 3529, "message": "Read the most recent session logs and chat summaries from agent_docs/session_logs/ and agent_docs/chat_summaries/ (focus on files from August 2025, especially the latest ones from Aug 24-29). Extract:\n1. Recent work completed\n2. Critical bug fixes and improvements\n3. System enhancements and features added\n4. Current state of the system\n5. Any pending issues or ongoing work\n\nFocus on understanding what has been recently done to get context on the current state of the quantum trading system.", "user_msg_index": 4, "total_msg_index": 91, "x_time": 1757453796546, "x_msg": 91, "cost": 0, "duration": "(1m 51s)"}, {"x": 133, "y": 3513, "message": "Read key work summaries and commit analyses from agent_docs/work_summaries/ and agent_docs/commit_analyses/ (focus on the most recent and significant ones). Extract:\n1. Major achievements and milestones\n2. Critical technical decisions and their rationale\n3. Problem-solving approaches used\n4. Performance improvements achieved\n5. Lessons learned from failures\n\nFocus on understanding the evolution of the system and the technical decisions that shaped the current architecture.", "user_msg_index": 5, "total_msg_index": 133, "x_time": 1757453908385, "x_msg": 133, "cost": 0, "duration": "(2m 12s)"}, {"x": 180, "y": 45451, "message": "it works now. Now I want chatGpt application can work with proxy, how to do it? the application is installed via AppStore", "user_msg_index": 6, "total_msg_index": 180, "x_time": 1757455058170, "x_msg": 180, "cost": 0, "duration": "(53s)"}, {"x": 195, "y": 448, "message": "the app asks to go to the page https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps", "user_msg_index": 7, "total_msg_index": 195, "x_time": 1757455216229, "x_msg": 195, "cost": 167, "duration": "(2m 41s)"}, {"x": 232, "y": 177, "message": "do you work now?", "user_msg_index": 8, "total_msg_index": 232, "x_time": 1757455456580, "x_msg": 232, "cost": 0, "duration": "(7s)"}, {"x": 234, "y": 158, "message": "can I view mitm in web mitmweb also", "user_msg_index": 9, "total_msg_index": 234, "x_time": 1757455497715, "x_msg": 234, "cost": 254, "duration": "(1m 13s)"}, {"x": 246, "y": 273, "message": "[Request interrupted by user for tool use]", "user_msg_index": 10, "total_msg_index": 246, "x_time": 1757455577235, "x_msg": 246, "cost": 139, "duration": "(-6s)"}, {"x": 247, "y": 273, "message": "mitm is running in tmux, stop this and run the new one", "user_msg_index": 11, "total_msg_index": 247, "x_time": 1757455588599, "x_msg": 247, "cost": 0, "duration": "(39s)"}, {"x": 259, "y": 235, "message": "it works now, but I have to do it manually because Ctrl C does not stop mitmproxy, you have to press y for yes. update it and make a readme for this", "user_msg_index": 12, "total_msg_index": 259, "x_time": 1757455788593, "x_msg": 259, "cost": 0, "duration": "(1m 59s)"}, {"x": 268, "y": 26, "message": "[Request interrupted by user]", "user_msg_index": 13, "total_msg_index": 268, "x_time": 1757455914218, "x_msg": 268, "cost": 82, "duration": "(-6s)"}, {"x": 269, "y": 26, "message": "I think you just say it in the README, no sh file needed", "user_msg_index": 14, "total_msg_index": 269, "x_time": 1757455936879, "x_msg": 269, "cost": 227, "duration": "(51s)"}, {"x": 277, "y": 1699, "message": "it says the reponse is only short when call anthropic. why? [Image #1]", "user_msg_index": 15, "total_msg_index": 277, "x_time": 1757456136208, "x_msg": 277, "cost": 0, "duration": "(18s)"}, {"x": 282, "y": 3489, "message": "[Image #1] request has content but not reponse [Image #2]", "user_msg_index": 16, "total_msg_index": 282, "x_time": 1757456298605, "x_msg": 282, "cost": 0, "duration": "(20s)"}, {"x": 284, "y": 605, "message": "just testing", "user_msg_index": 17, "total_msg_index": 284, "x_time": 1757456547864, "x_msg": 284, "cost": 0, "duration": "(6s)"}, {"x": 286, "y": 166, "message": "test again", "user_msg_index": 18, "total_msg_index": 286, "x_time": 1757456617524, "x_msg": 286, "cost": 0, "duration": "(5s)"}, {"x": 288, "y": 19, "message": "how about now", "user_msg_index": 19, "total_msg_index": 288, "x_time": 1757456698101, "x_msg": 288, "cost": 0, "duration": "(4s)"}, {"x": 290, "y": 70611, "message": "does mitmproxy and mitmweb has any different in running with the universal_sse_logger_v4", "user_msg_index": 20, "total_msg_index": 290, "x_time": 1757459048066, "x_msg": 290, "cost": 0, "duration": "(15s)"}, {"x": 292, "y": 370, "message": "we have ssi_scraper run in pm2. check if it works with proxy", "user_msg_index": 21, "total_msg_index": 292, "x_time": 1757459197366, "x_msg": 292, "cost": 293, "duration": "(2m 52s)"}, {"x": 317, "y": 75370, "message": "the system is detecting unwind but maybe sending message to telegram has problem. check the pm2 process", "user_msg_index": 22, "total_msg_index": 317, "x_time": 1757461664892, "x_msg": 317, "cost": 0, "duration": "(2m 47s)"}, {"x": 325, "y": 243, "message": "[Request interrupted by user for tool use]", "user_msg_index": 23, "total_msg_index": 325, "x_time": 1757461838449, "x_msg": 325, "cost": 84, "duration": "(-5s)"}, {"x": 326, "y": 243, "message": "check arbit-detector code to see what it calls, tele-bot-v2 is different process, maybe unrelated", "user_msg_index": 24, "total_msg_index": 326, "x_time": 1757461871626, "x_msg": 326, "cost": 40, "duration": "(3m 11s)"}, {"x": 359, "y": 85242, "message": "still no message sent. check again", "user_msg_index": 25, "total_msg_index": 359, "x_time": 1757463008740, "x_msg": 359, "cost": 0, "duration": "(59s)"}, {"x": 373, "y": 209, "message": "[Request interrupted by user for tool use]", "user_msg_index": 26, "total_msg_index": 373, "x_time": 1757463081565, "x_msg": 373, "cost": 38, "duration": "(-13s)"}, {"x": 374, "y": 209, "message": "the ETF test message was sent sucessfully. but the arbit/unwind messages are not", "user_msg_index": 27, "total_msg_index": 374, "x_time": 1757463105826, "x_msg": 374, "cost": 0, "duration": "(19s)"}, {"x": 381, "y": 359, "message": "[Request interrupted by user for tool use]", "user_msg_index": 28, "total_msg_index": 381, "x_time": 1757463151998, "x_msg": 381, "cost": 0, "duration": "(-26s)"}, {"x": 382, "y": 359, "message": "does restart work?", "user_msg_index": 29, "total_msg_index": 382, "x_time": 1757463157755, "x_msg": 382, "cost": 885, "duration": "(1m 8s)"}, {"x": 396, "y": 95048, "message": "commit and push", "user_msg_index": 30, "total_msg_index": 396, "x_time": 1757465642653, "x_msg": 396, "cost": 0, "duration": "(3m 45s)"}, {"x": 414, "y": 96622, "message": "we have tools.output. ignore this in git", "user_msg_index": 31, "total_msg_index": 414, "x_time": 1757466214327, "x_msg": 414, "cost": 0, "duration": "(1m 18s)"}];
+    const USER_MESSAGES_CUMULATIVE = [{"x": 3, "y": 13232, "message": "read all the docs", "user_msg_index": 1, "total_msg_index": 3, "x_time": 1757453560590, "x_msg": 3, "cost": 0, "duration": "(36s)"}, {"x": 18, "y": 53651, "message": "Read all markdown files in agent_docs/business/ directory and provide a comprehensive understanding of:\n1. Trading patterns and arbitrage detection\n2. VN30 data systems and calculations\n3. Redis data structures\n4. Foreign trading computations\n5. Trading metrics and flows\n6. Vietnamese market indices\n\nFor each document, extract key concepts, business rules, and important technical details. Focus on understanding the core business logic of this quantum trading system.", "user_msg_index": 2, "total_msg_index": 18, "x_time": 1757453596919, "x_msg": 18, "cost": 0, "duration": "(1m 37s)"}, {"x": 53, "y": 231259, "message": "Read all markdown files in agent_docs/technical_docs/ directory and provide comprehensive understanding of:\n1. System architecture and infrastructure\n2. Arbit/unwind detection algorithms and operations\n3. Feature store and memory requirements\n4. MongoDB/ClickHouse sync system\n5. VWAP detection system\n6. M2 deployment and Cronicle configuration\n7. MCP server implementations\n8. Historical backtesting systems\n\nExtract key technical details, algorithms, performance metrics, and operational procedures.", "user_msg_index": 3, "total_msg_index": 53, "x_time": 1757453694045, "x_msg": 53, "cost": 0, "duration": "(1m 42s)"}, {"x": 91, "y": 532111, "message": "Read the most recent session logs and chat summaries from agent_docs/session_logs/ and agent_docs/chat_summaries/ (focus on files from August 2025, especially the latest ones from Aug 24-29). Extract:\n1. Recent work completed\n2. Critical bug fixes and improvements\n3. System enhancements and features added\n4. Current state of the system\n5. Any pending issues or ongoing work\n\nFocus on understanding what has been recently done to get context on the current state of the quantum trading system.", "user_msg_index": 4, "total_msg_index": 91, "x_time": 1757453796546, "x_msg": 91, "cost": 0, "duration": "(1m 51s)"}, {"x": 133, "y": 673271, "message": "Read key work summaries and commit analyses from agent_docs/work_summaries/ and agent_docs/commit_analyses/ (focus on the most recent and significant ones). Extract:\n1. Major achievements and milestones\n2. Critical technical decisions and their rationale\n3. Problem-solving approaches used\n4. Performance improvements achieved\n5. Lessons learned from failures\n\nFocus on understanding the evolution of the system and the technical decisions that shaped the current architecture.", "user_msg_index": 5, "total_msg_index": 133, "x_time": 1757453908385, "x_msg": 133, "cost": 0, "duration": "(2m 12s)"}, {"x": 180, "y": 909649, "message": "it works now. Now I want chatGpt application can work with proxy, how to do it? the application is installed via AppStore", "user_msg_index": 6, "total_msg_index": 180, "x_time": 1757455058170, "x_msg": 180, "cost": 0, "duration": "(53s)"}, {"x": 195, "y": 956885, "message": "the app asks to go to the page https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps", "user_msg_index": 7, "total_msg_index": 195, "x_time": 1757455216229, "x_msg": 195, "cost": 167, "duration": "(2m 41s)"}, {"x": 232, "y": 969415, "message": "do you work now?", "user_msg_index": 8, "total_msg_index": 232, "x_time": 1757455456580, "x_msg": 232, "cost": 0, "duration": "(7s)"}, {"x": 234, "y": 969577, "message": "can I view mitm in web mitmweb also", "user_msg_index": 9, "total_msg_index": 234, "x_time": 1757455497715, "x_msg": 234, "cost": 254, "duration": "(1m 13s)"}, {"x": 246, "y": 972004, "message": "[Request interrupted by user for tool use]", "user_msg_index": 10, "total_msg_index": 246, "x_time": 1757455577235, "x_msg": 246, "cost": 139, "duration": "(-6s)"}, {"x": 247, "y": 972004, "message": "mitm is running in tmux, stop this and run the new one", "user_msg_index": 11, "total_msg_index": 247, "x_time": 1757455588599, "x_msg": 247, "cost": 0, "duration": "(39s)"}, {"x": 259, "y": 973467, "message": "it works now, but I have to do it manually because Ctrl C does not stop mitmproxy, you have to press y for yes. update it and make a readme for this", "user_msg_index": 12, "total_msg_index": 259, "x_time": 1757455788593, "x_msg": 259, "cost": 0, "duration": "(1m 59s)"}, {"x": 268, "y": 975698, "message": "[Request interrupted by user]", "user_msg_index": 13, "total_msg_index": 268, "x_time": 1757455914218, "x_msg": 268, "cost": 82, "duration": "(-6s)"}, {"x": 269, "y": 975698, "message": "I think you just say it in the README, no sh file needed", "user_msg_index": 14, "total_msg_index": 269, "x_time": 1757455936879, "x_msg": 269, "cost": 227, "duration": "(51s)"}, {"x": 277, "y": 980302, "message": "it says the reponse is only short when call anthropic. why? [Image #1]", "user_msg_index": 15, "total_msg_index": 277, "x_time": 1757456136208, "x_msg": 277, "cost": 0, "duration": "(18s)"}, {"x": 282, "y": 985986, "message": "[Image #1] request has content but not reponse [Image #2]", "user_msg_index": 16, "total_msg_index": 282, "x_time": 1757456298605, "x_msg": 282, "cost": 0, "duration": "(20s)"}, {"x": 284, "y": 986592, "message": "just testing", "user_msg_index": 17, "total_msg_index": 284, "x_time": 1757456547864, "x_msg": 284, "cost": 0, "duration": "(6s)"}, {"x": 286, "y": 986760, "message": "test again", "user_msg_index": 18, "total_msg_index": 286, "x_time": 1757456617524, "x_msg": 286, "cost": 0, "duration": "(5s)"}, {"x": 288, "y": 986780, "message": "how about now", "user_msg_index": 19, "total_msg_index": 288, "x_time": 1757456698101, "x_msg": 288, "cost": 0, "duration": "(4s)"}, {"x": 290, "y": 1057392, "message": "does mitmproxy and mitmweb has any different in running with the universal_sse_logger_v4", "user_msg_index": 20, "total_msg_index": 290, "x_time": 1757459048066, "x_msg": 290, "cost": 0, "duration": "(15s)"}, {"x": 292, "y": 1057763, "message": "we have ssi_scraper run in pm2. check if it works with proxy", "user_msg_index": 21, "total_msg_index": 292, "x_time": 1757459197366, "x_msg": 292, "cost": 293, "duration": "(2m 52s)"}, {"x": 317, "y": 1138283, "message": "the system is detecting unwind but maybe sending message to telegram has problem. check the pm2 process", "user_msg_index": 22, "total_msg_index": 317, "x_time": 1757461664892, "x_msg": 317, "cost": 0, "duration": "(2m 47s)"}, {"x": 325, "y": 1139574, "message": "[Request interrupted by user for tool use]", "user_msg_index": 23, "total_msg_index": 325, "x_time": 1757461838449, "x_msg": 325, "cost": 84, "duration": "(-5s)"}, {"x": 326, "y": 1139574, "message": "check arbit-detector code to see what it calls, tele-bot-v2 is different process, maybe unrelated", "user_msg_index": 24, "total_msg_index": 326, "x_time": 1757461871626, "x_msg": 326, "cost": 40, "duration": "(3m 11s)"}, {"x": 359, "y": 1236011, "message": "still no message sent. check again", "user_msg_index": 25, "total_msg_index": 359, "x_time": 1757463008740, "x_msg": 359, "cost": 0, "duration": "(59s)"}, {"x": 373, "y": 1246076, "message": "[Request interrupted by user for tool use]", "user_msg_index": 26, "total_msg_index": 373, "x_time": 1757463081565, "x_msg": 373, "cost": 38, "duration": "(-13s)"}, {"x": 374, "y": 1246076, "message": "the ETF test message was sent sucessfully. but the arbit/unwind messages are not", "user_msg_index": 27, "total_msg_index": 374, "x_time": 1757463105826, "x_msg": 374, "cost": 0, "duration": "(19s)"}, {"x": 381, "y": 1247031, "message": "[Request interrupted by user for tool use]", "user_msg_index": 28, "total_msg_index": 381, "x_time": 1757463151998, "x_msg": 381, "cost": 0, "duration": "(-26s)"}, {"x": 382, "y": 1247031, "message": "does restart work?", "user_msg_index": 29, "total_msg_index": 382, "x_time": 1757463157755, "x_msg": 382, "cost": 885, "duration": "(1m 8s)"}, {"x": 396, "y": 1348811, "message": "commit and push", "user_msg_index": 30, "total_msg_index": 396, "x_time": 1757465642653, "x_msg": 396, "cost": 0, "duration": "(3m 45s)"}, {"x": 414, "y": 1447190, "message": "we have tools.output. ignore this in git", "user_msg_index": 31, "total_msg_index": 414, "x_time": 1757466214327, "x_msg": 414, "cost": 0, "duration": "(1m 18s)"}];
+    const MODEL_CONTEXT_WINDOW = 200000;
+    const INDEX_TO_TS = {"4": "2025-09-10T04:32:44.730Z", "5": "2025-09-10T04:32:45.908Z", "7": "2025-09-10T04:32:53.518Z", "8": "2025-09-10T04:32:54.530Z", "10": "2025-09-10T04:32:57.980Z", "12": "2025-09-10T04:33:01.139Z", "13": "2025-09-10T04:33:05.428Z", "15": "2025-09-10T04:33:10.583Z", "17": "2025-09-10T04:33:16.898Z", "19": "2025-09-10T04:33:19.690Z", "20": "2025-09-10T04:33:19.984Z", "22": "2025-09-10T04:33:23.349Z", "23": "2025-09-10T04:33:23.825Z", "24": "2025-09-10T04:33:24.355Z", "25": "2025-09-10T04:33:25.278Z", "26": "2025-09-10T04:33:26.352Z", "27": "2025-09-10T04:33:27.147Z", "28": "2025-09-10T04:33:27.258Z", "35": "2025-09-10T04:33:32.252Z", "36": "2025-09-10T04:33:33.740Z", "37": "2025-09-10T04:33:34.770Z", "38": "2025-09-10T04:33:36.488Z", "39": "2025-09-10T04:33:37.917Z", "40": "2025-09-10T04:33:38.200Z", "41": "2025-09-10T04:33:38.349Z", "48": "2025-09-10T04:34:39.865Z", "50": "2025-09-10T04:34:46.356Z", "52": "2025-09-10T04:34:54.008Z", "54": "2025-09-10T04:34:57.357Z", "55": "2025-09-10T04:34:57.635Z", "57": "2025-09-10T04:34:59.947Z", "58": "2025-09-10T04:35:00.631Z", "59": "2025-09-10T04:35:01.170Z", "60": "2025-09-10T04:35:01.676Z", "61": "2025-09-10T04:35:02.143Z", "62": "2025-09-10T04:35:02.669Z", "68": "2025-09-10T04:35:08.278Z", "69": "2025-09-10T04:35:09.287Z", "70": "2025-09-10T04:35:10.201Z", "71": "2025-09-10T04:35:10.883Z", "72": "2025-09-10T04:35:11.651Z", "73": "2025-09-10T04:35:12.221Z", "79": "2025-09-10T04:35:17.131Z", "80": "2025-09-10T04:35:18.162Z", "81": "2025-09-10T04:35:18.802Z", "82": "2025-09-10T04:35:19.521Z", "86": "2025-09-10T04:36:22.753Z", "88": "2025-09-10T04:36:29.403Z", "90": "2025-09-10T04:36:36.509Z", "92": "2025-09-10T04:36:40.639Z", "93": "2025-09-10T04:36:40.995Z", "94": "2025-09-10T04:36:41.277Z", "97": "2025-09-10T04:36:56.883Z", "98": "2025-09-10T04:36:57.468Z", "99": "2025-09-10T04:36:58.188Z", "100": "2025-09-10T04:36:58.803Z", "101": "2025-09-10T04:36:59.023Z", "106": "2025-09-10T04:37:02.930Z", "107": "2025-09-10T04:37:04.096Z", "108": "2025-09-10T04:37:05.183Z", "109": "2025-09-10T04:37:05.891Z", "113": "2025-09-10T04:37:12.873Z", "114": "2025-09-10T04:37:14.216Z", "115": "2025-09-10T04:37:14.984Z", "116": "2025-09-10T04:37:15.735Z", "120": "2025-09-10T04:37:19.863Z", "121": "2025-09-10T04:37:21.077Z", "122": "2025-09-10T04:37:21.284Z", "125": "2025-09-10T04:37:25.075Z", "126": "2025-09-10T04:37:25.520Z", "128": "2025-09-10T04:38:15.095Z", "130": "2025-09-10T04:38:21.733Z", "132": "2025-09-10T04:38:28.348Z", "134": "2025-09-10T04:38:31.545Z", "135": "2025-09-10T04:38:32.369Z", "137": "2025-09-10T04:38:35.657Z", "139": "2025-09-10T04:38:38.458Z", "140": "2025-09-10T04:38:39.187Z", "141": "2025-09-10T04:38:39.691Z", "142": "2025-09-10T04:38:40.228Z", "143": "2025-09-10T04:38:40.745Z", "148": "2025-09-10T04:38:50.569Z", "149": "2025-09-10T04:38:52.037Z", "150": "2025-09-10T04:38:53.024Z", "151": "2025-09-10T04:38:53.809Z", "152": "2025-09-10T04:38:54.550Z", "157": "2025-09-10T04:38:59.920Z", "158": "2025-09-10T04:39:01.484Z", "159": "2025-09-10T04:39:02.191Z", "160": "2025-09-10T04:39:03.158Z", "164": "2025-09-10T04:39:07.325Z", "165": "2025-09-10T04:39:08.625Z", "167": "2025-09-10T04:40:00.090Z", "169": "2025-09-10T04:40:06.900Z", "171": "2025-09-10T04:40:10.427Z", "173": "2025-09-10T04:40:15.473Z", "175": "2025-09-10T04:40:19.298Z", "177": "2025-09-10T04:40:25.687Z", "179": "2025-09-10T04:40:40.879Z", "181": "2025-09-10T04:57:42.484Z", "182": "2025-09-10T04:57:44.400Z", "184": "2025-09-10T04:57:47.939Z", "186": "2025-09-10T04:57:55.491Z", "188": "2025-09-10T04:58:05.169Z", "190": "2025-09-10T04:58:12.133Z", "192": "2025-09-10T04:58:21.482Z", "194": "2025-09-10T04:58:31.698Z", "196": "2025-09-10T05:00:21.125Z", "198": "2025-09-10T05:00:27.879Z", "199": "2025-09-10T05:00:30.259Z", "201": "2025-09-10T05:00:34.194Z", "203": "2025-09-10T05:00:41.499Z", "205": "2025-09-10T05:00:45.676Z", "207": "2025-09-10T05:00:52.114Z", "209": "2025-09-10T05:00:59.981Z", "211": "2025-09-10T05:01:03.704Z", "213": "2025-09-10T05:01:54.991Z", "214": "2025-09-10T05:01:56.719Z", "216": "2025-09-10T05:02:07.113Z", "217": "2025-09-10T05:02:08.140Z", "219": "2025-09-10T05:02:16.540Z", "220": "2025-09-10T05:02:17.858Z", "222": "2025-09-10T05:02:22.611Z", "223": "2025-09-10T05:02:23.748Z", "225": "2025-09-10T05:02:32.009Z", "226": "2025-09-10T05:02:33.290Z", "228": "2025-09-10T05:02:49.204Z", "229": "2025-09-10T05:02:51.384Z", "231": "2025-09-10T05:02:57.585Z", "233": "2025-09-10T05:04:23.872Z", "235": "2025-09-10T05:05:01.608Z", "236": "2025-09-10T05:05:02.774Z", "238": "2025-09-10T05:05:05.978Z", "239": "2025-09-10T05:05:06.843Z", "241": "2025-09-10T05:05:52.670Z", "243": "2025-09-10T05:06:09.035Z", "244": "2025-09-10T05:06:10.950Z", "248": "2025-09-10T05:06:32.479Z", "250": "2025-09-10T05:06:38.236Z", "252": "2025-09-10T05:06:44.417Z", "254": "2025-09-10T05:06:53.388Z", "256": "2025-09-10T05:06:59.375Z", "258": "2025-09-10T05:07:07.788Z", "260": "2025-09-10T05:09:53.519Z", "262": "2025-09-10T05:10:25.039Z", "264": "2025-09-10T05:10:35.565Z", "266": "2025-09-10T05:11:47.914Z", "270": "2025-09-10T05:12:20.621Z", "272": "2025-09-10T05:12:51.312Z", "274": "2025-09-10T05:13:03.121Z", "276": "2025-09-10T05:13:08.853Z", "278": "2025-09-10T05:15:40.544Z", "279": "2025-09-10T05:15:42.653Z", "281": "2025-09-10T05:15:55.087Z", "283": "2025-09-10T05:18:39.545Z", "285": "2025-09-10T05:22:34.805Z", "287": "2025-09-10T05:23:42.731Z", "289": "2025-09-10T05:25:02.189Z", "291": "2025-09-10T06:04:23.579Z", "293": "2025-09-10T06:06:43.659Z", "295": "2025-09-10T06:06:50.502Z", "297": "2025-09-10T06:06:59.879Z", "299": "2025-09-10T06:07:08.208Z", "301": "2025-09-10T06:07:14.046Z", "303": "2025-09-10T06:07:20.890Z", "305": "2025-09-10T06:08:35.108Z", "307": "2025-09-10T06:08:42.879Z", "309": "2025-09-10T06:08:49.512Z", "311": "2025-09-10T06:08:56.960Z", "313": "2025-09-10T06:09:23.478Z", "314": "2025-09-10T06:09:24.802Z", "316": "2025-09-10T06:09:30.338Z", "318": "2025-09-10T06:47:54.740Z", "320": "2025-09-10T06:48:01.072Z", "322": "2025-09-10T06:50:31.949Z", "323": "2025-09-10T06:50:32.754Z", "327": "2025-09-10T06:51:16.983Z", "329": "2025-09-10T06:51:22.362Z", "331": "2025-09-10T06:51:42.546Z", "333": "2025-09-10T06:51:50.476Z", "335": "2025-09-10T06:51:55.848Z", "337": "2025-09-10T06:52:03.744Z", "339": "2025-09-10T06:52:10.732Z", "341": "2025-09-10T06:52:20.228Z", "343": "2025-09-10T06:52:30.304Z", "344": "2025-09-10T06:52:32.052Z", "346": "2025-09-10T06:52:53.340Z", "348": "2025-09-10T06:53:05.821Z", "349": "2025-09-10T06:53:11.916Z", "351": "2025-09-10T06:53:25.846Z", "352": "2025-09-10T06:53:26.330Z", "354": "2025-09-10T06:53:39.732Z", "356": "2025-09-10T06:54:11.458Z", "358": "2025-09-10T06:54:22.644Z", "360": "2025-09-10T07:10:14.007Z", "362": "2025-09-10T07:10:24.015Z", "363": "2025-09-10T07:10:25.328Z", "365": "2025-09-10T07:10:44.553Z", "366": "2025-09-10T07:10:45.132Z", "368": "2025-09-10T07:10:54.280Z", "369": "2025-09-10T07:10:55.325Z", "371": "2025-09-10T07:11:08.211Z", "375": "2025-09-10T07:11:52.253Z", "376": "2025-09-10T07:11:52.612Z", "378": "2025-09-10T07:12:04.374Z", "379": "2025-09-10T07:12:05.004Z", "383": "2025-09-10T07:12:44.153Z", "384": "2025-09-10T07:12:44.249Z", "386": "2025-09-10T07:12:57.490Z", "387": "2025-09-10T07:12:59.162Z", "389": "2025-09-10T07:13:21.450Z", "390": "2025-09-10T07:13:22.678Z", "392": "2025-09-10T07:13:36.029Z", "393": "2025-09-10T07:13:37.333Z", "395": "2025-09-10T07:13:46.527Z", "397": "2025-09-10T07:54:11.138Z", "399": "2025-09-10T07:54:17.246Z", "401": "2025-09-10T07:54:22.996Z", "403": "2025-09-10T07:54:35.005Z", "405": "2025-09-10T07:54:43.681Z", "407": "2025-09-10T07:55:05.684Z", "409": "2025-09-10T07:55:14.017Z", "411": "2025-09-10T07:57:41.682Z", "413": "2025-09-10T07:57:48.423Z", "415": "2025-09-10T08:03:40.699Z", "417": "2025-09-10T08:03:46.664Z", "419": "2025-09-10T08:03:53.432Z", "421": "2025-09-10T08:03:59.419Z", "423": "2025-09-10T08:04:14.272Z", "425": "2025-09-10T08:04:22.294Z", "427": "2025-09-10T08:04:34.178Z", "429": "2025-09-10T08:04:45.878Z", "431": "2025-09-10T08:04:53.097Z", "1": "2025-09-10T04:31:15.303Z", "2": "2025-09-10T04:31:45.112Z", "3": "2025-09-10T04:32:14.921Z", "6": "2025-09-10T04:33:44.347Z", "9": "2025-09-10T04:35:13.774Z", "11": "2025-09-10T04:36:13.391Z", "14": "2025-09-10T04:37:42.818Z", "16": "2025-09-10T04:38:42.435Z", "18": "2025-09-10T04:39:42.053Z", "21": "2025-09-10T04:41:11.479Z", "29": "2025-09-10T04:45:09.950Z", "30": "2025-09-10T04:45:39.759Z", "31": "2025-09-10T04:46:09.568Z", "32": "2025-09-10T04:46:39.377Z", "33": "2025-09-10T04:47:09.185Z", "34": "2025-09-10T04:47:38.994Z", "42": "2025-09-10T04:51:37.465Z", "43": "2025-09-10T04:52:07.274Z", "44": "2025-09-10T04:52:37.082Z", "45": "2025-09-10T04:53:06.891Z", "46": "2025-09-10T04:53:36.700Z", "47": "2025-09-10T04:54:06.509Z", "49": "2025-09-10T04:55:06.126Z", "51": "2025-09-10T04:56:05.744Z", "53": "2025-09-10T04:57:05.362Z", "56": "2025-09-10T04:58:34.788Z", "63": "2025-09-10T05:02:03.450Z", "64": "2025-09-10T05:02:33.259Z", "65": "2025-09-10T05:03:03.068Z", "66": "2025-09-10T05:03:32.876Z", "67": "2025-09-10T05:04:02.685Z", "74": "2025-09-10T05:07:31.347Z", "75": "2025-09-10T05:08:01.156Z", "76": "2025-09-10T05:08:30.965Z", "77": "2025-09-10T05:09:00.774Z", "78": "2025-09-10T05:09:30.582Z", "83": "2025-09-10T05:11:59.626Z", "84": "2025-09-10T05:12:29.435Z", "85": "2025-09-10T05:12:59.244Z", "87": "2025-09-10T05:13:58.862Z", "89": "2025-09-10T05:14:58.479Z", "91": "2025-09-10T05:15:58.097Z", "95": "2025-09-10T05:17:57.332Z", "96": "2025-09-10T05:18:27.141Z", "102": "2025-09-10T05:21:25.994Z", "103": "2025-09-10T05:21:55.803Z", "104": "2025-09-10T05:22:25.612Z", "105": "2025-09-10T05:22:55.421Z", "110": "2025-09-10T05:25:24.465Z", "111": "2025-09-10T05:25:54.273Z", "112": "2025-09-10T05:26:24.082Z", "117": "2025-09-10T05:28:53.126Z", "118": "2025-09-10T05:29:22.935Z", "119": "2025-09-10T05:29:52.744Z", "123": "2025-09-10T05:31:51.979Z", "124": "2025-09-10T05:32:21.788Z", "127": "2025-09-10T05:33:51.215Z", "129": "2025-09-10T05:34:50.832Z", "131": "2025-09-10T05:35:50.450Z", "133": "2025-09-10T05:36:50.068Z", "136": "2025-09-10T05:38:19.494Z", "138": "2025-09-10T05:39:19.112Z", "144": "2025-09-10T05:42:17.965Z", "145": "2025-09-10T05:42:47.773Z", "146": "2025-09-10T05:43:17.582Z", "147": "2025-09-10T05:43:47.391Z", "153": "2025-09-10T05:46:46.244Z", "154": "2025-09-10T05:47:16.053Z", "155": "2025-09-10T05:47:45.862Z", "156": "2025-09-10T05:48:15.670Z", "161": "2025-09-10T05:50:44.715Z", "162": "2025-09-10T05:51:14.523Z", "163": "2025-09-10T05:51:44.332Z", "166": "2025-09-10T05:53:13.759Z", "168": "2025-09-10T05:54:13.376Z", "170": "2025-09-10T05:55:12.994Z", "172": "2025-09-10T05:56:12.612Z", "174": "2025-09-10T05:57:12.229Z", "176": "2025-09-10T05:58:11.847Z", "178": "2025-09-10T05:59:11.465Z", "180": "2025-09-10T06:00:11.082Z", "183": "2025-09-10T06:01:40.509Z", "185": "2025-09-10T06:02:40.126Z", "187": "2025-09-10T06:03:39.744Z", "189": "2025-09-10T06:04:39.362Z", "191": "2025-09-10T06:05:38.979Z", "193": "2025-09-10T06:06:38.597Z", "195": "2025-09-10T06:07:38.215Z", "197": "2025-09-10T06:08:37.832Z", "200": "2025-09-10T06:10:07.259Z", "202": "2025-09-10T06:11:06.876Z", "204": "2025-09-10T06:12:06.494Z", "206": "2025-09-10T06:13:06.112Z", "208": "2025-09-10T06:14:05.729Z", "210": "2025-09-10T06:15:05.347Z", "212": "2025-09-10T06:16:04.964Z", "215": "2025-09-10T06:17:34.391Z", "218": "2025-09-10T06:19:03.817Z", "221": "2025-09-10T06:20:33.244Z", "224": "2025-09-10T06:22:02.670Z", "227": "2025-09-10T06:23:32.097Z", "230": "2025-09-10T06:25:01.523Z", "232": "2025-09-10T06:26:01.141Z", "234": "2025-09-10T06:27:00.759Z", "237": "2025-09-10T06:28:30.185Z", "240": "2025-09-10T06:29:59.611Z", "242": "2025-09-10T06:30:59.229Z", "245": "2025-09-10T06:32:28.656Z", "246": "2025-09-10T06:32:58.464Z", "247": "2025-09-10T06:33:28.273Z", "249": "2025-09-10T06:34:27.891Z", "251": "2025-09-10T06:35:27.509Z", "253": "2025-09-10T06:36:27.126Z", "255": "2025-09-10T06:37:26.744Z", "257": "2025-09-10T06:38:26.361Z", "259": "2025-09-10T06:39:25.979Z", "261": "2025-09-10T06:40:25.597Z", "263": "2025-09-10T06:41:25.214Z", "265": "2025-09-10T06:42:24.832Z", "267": "2025-09-10T06:43:24.450Z", "268": "2025-09-10T06:43:54.259Z", "269": "2025-09-10T06:44:24.067Z", "271": "2025-09-10T06:45:23.685Z", "273": "2025-09-10T06:46:23.303Z", "275": "2025-09-10T06:47:22.920Z", "277": "2025-09-10T06:48:22.538Z", "280": "2025-09-10T06:49:51.964Z", "282": "2025-09-10T06:50:51.582Z", "284": "2025-09-10T06:51:51.200Z", "286": "2025-09-10T06:52:50.817Z", "288": "2025-09-10T06:53:50.435Z", "290": "2025-09-10T06:54:50.053Z", "292": "2025-09-10T06:55:49.670Z", "294": "2025-09-10T06:56:49.288Z", "296": "2025-09-10T06:57:48.906Z", "298": "2025-09-10T06:58:48.523Z", "300": "2025-09-10T06:59:48.141Z", "302": "2025-09-10T07:00:47.758Z", "304": "2025-09-10T07:01:47.376Z", "306": "2025-09-10T07:02:46.994Z", "308": "2025-09-10T07:03:46.611Z", "310": "2025-09-10T07:04:46.229Z", "312": "2025-09-10T07:05:45.847Z", "315": "2025-09-10T07:07:15.273Z", "317": "2025-09-10T07:08:14.891Z", "319": "2025-09-10T07:09:14.508Z", "321": "2025-09-10T07:10:14.126Z", "324": "2025-09-10T07:11:43.553Z", "325": "2025-09-10T07:12:13.361Z", "326": "2025-09-10T07:12:43.170Z", "328": "2025-09-10T07:13:42.788Z", "330": "2025-09-10T07:14:42.405Z", "332": "2025-09-10T07:15:42.023Z", "334": "2025-09-10T07:16:41.641Z", "336": "2025-09-10T07:17:41.258Z", "338": "2025-09-10T07:18:40.876Z", "340": "2025-09-10T07:19:40.494Z", "342": "2025-09-10T07:20:40.111Z", "345": "2025-09-10T07:22:09.538Z", "347": "2025-09-10T07:23:09.155Z", "350": "2025-09-10T07:24:38.582Z", "353": "2025-09-10T07:26:08.008Z", "355": "2025-09-10T07:27:07.626Z", "357": "2025-09-10T07:28:07.244Z", "359": "2025-09-10T07:29:06.861Z", "361": "2025-09-10T07:30:06.479Z", "364": "2025-09-10T07:31:35.905Z", "367": "2025-09-10T07:33:05.332Z", "370": "2025-09-10T07:34:34.758Z", "372": "2025-09-10T07:35:34.376Z", "373": "2025-09-10T07:36:04.185Z", "374": "2025-09-10T07:36:33.994Z", "377": "2025-09-10T07:38:03.420Z", "380": "2025-09-10T07:39:32.847Z", "381": "2025-09-10T07:40:02.655Z", "382": "2025-09-10T07:40:32.464Z", "385": "2025-09-10T07:42:01.891Z", "388": "2025-09-10T07:43:31.317Z", "391": "2025-09-10T07:45:00.744Z", "394": "2025-09-10T07:46:30.170Z", "396": "2025-09-10T07:47:29.788Z", "398": "2025-09-10T07:48:29.405Z", "400": "2025-09-10T07:49:29.023Z", "402": "2025-09-10T07:50:28.641Z", "404": "2025-09-10T07:51:28.258Z", "406": "2025-09-10T07:52:27.876Z", "408": "2025-09-10T07:53:27.494Z", "410": "2025-09-10T07:54:27.111Z", "412": "2025-09-10T07:55:26.729Z", "414": "2025-09-10T07:56:26.347Z", "416": "2025-09-10T07:57:25.964Z", "418": "2025-09-10T07:58:25.582Z", "420": "2025-09-10T07:59:25.199Z", "422": "2025-09-10T08:00:24.817Z", "424": "2025-09-10T08:01:24.435Z", "426": "2025-09-10T08:02:24.052Z", "428": "2025-09-10T08:03:23.670Z", "430": "2025-09-10T08:04:23.288Z"};
+    let MESSAGE_BASED_X = true;
+
+    function formatTime(isoString) {
+      const date = new Date(isoString);
+      return date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'Asia/Bangkok'  // UTC+7
+      });
+    }
+
+    function getXAxisConfig(isMessageBased) {
+      if (isMessageBased) {
+        return {
+          type: 'linear',
+          title: { display: true, text: 'Time (message-based)', color: '#9ca3af', font: { size: 14 } },
+          ticks: {
+            color: '#9ca3af',
+            maxTicksLimit: 20,
+            callback: function(value) {
+              const idx = Math.round(value);
+              const ts = INDEX_TO_TS[idx];
+              return ts ? formatTime(ts) : '';
+            }
+          },
+          grid: { color: 'rgba(156,163,175,0.1)' }
+        };
+      } else {
+        return {
+          type: 'time',
+          time: { unit: 'minute', displayFormats: { minute: 'HH:mm', hour: 'HH:mm' } },
+          title: { display: true, text: 'Time', color: '#9ca3af', font: { size: 14 } },
+          ticks: { color: '#9ca3af' },
+          grid: { color: 'rgba(156,163,175,0.1)' }
+        };
+      }
+    }
+
+    // Helper function to wrap text at a given character limit
+    function wrapText(text, maxWidth) {
+      const words = text.split(' ');
+      const lines = [];
+      let currentLine = '';
+
+      for (let word of words) {
+        const testLine = currentLine ? currentLine + ' ' + word : word;
+        if (testLine.length > maxWidth && currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      }
+
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+
+      return lines;
+    }
+
+    const ctxContext = document.getElementById('contextChart').getContext('2d');
+    const contextChart = new Chart(ctxContext, {
+      type: 'line',
+      data: {
+        datasets: [
+          {
+            label: 'Context Window Tokens',
+            data: MESSAGE_BASED_X ? CONTEXT_MSG_DATA : CONTEXT_TIME_DATA,
+            parsing: false,
+            borderColor: '#60a5fa',
+            backgroundColor: 'rgba(96,165,250,0.15)',
+            tension: 0.3,
+            pointRadius: 0,
+            borderWidth: 2,
+            fill: true,
+            order: 2
+          },
+          {
+            label: 'User Messages',
+            data: USER_MESSAGES_CONTEXT,
+            parsing: false,
+            type: 'scatter',
+            backgroundColor: '#fbbf24',
+            borderColor: '#f59e0b',
+            borderWidth: 2,
+            pointRadius: 8,
+            pointHoverRadius: 10,
+            pointStyle: 'star',
+            order: 1
+          },
+          {
+            label: 'Model Context Window Limit',
+            data: (function() {
+              const data = MESSAGE_BASED_X ? CONTEXT_MSG_DATA : CONTEXT_TIME_DATA;
+              return [
+                { x: data[0].x, y: MODEL_CONTEXT_WINDOW },
+                { x: data[data.length - 1].x, y: MODEL_CONTEXT_WINDOW }
+              ];
+            })(),
+            parsing: false,
+            borderColor: '#ef4444',
+            borderWidth: 2,
+            borderDash: [10, 5],
+            pointRadius: 0,
+            fill: false,
+            order: 3
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        onClick: (event, elements) => {
+          if (elements.length > 0 && elements[0].datasetIndex === 1) {
+            const data = USER_MESSAGES_CONTEXT[elements[0].index];
+            const card = document.querySelector('.message-card[data-index="' + data.user_msg_index + '"]');
+            if (card) {
+              card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              setTimeout(() => highlightMessage(card), 300);
+            }
+          }
+        },
+        scales: {
+          x: getXAxisConfig(MESSAGE_BASED_X),
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: 'Tokens', color: '#9ca3af', font: { size: 14 } },
+            ticks: { color: '#9ca3af', callback: function(value) { return value.toLocaleString(); } },
+            grid: { color: 'rgba(156,163,175,0.1)' }
+          }
+        },
+        plugins: {
+          legend: { position: 'top', labels: { color: '#e5e7eb', padding: 10, font: { size: 11 } } },
+          tooltip: {
+            backgroundColor: 'rgba(20,24,45,0.95)',
+            titleColor: '#e5e7eb',
+            bodyColor: '#e5e7eb',
+            borderColor: '#60a5fa',
+            borderWidth: 1,
+            padding: 12,
+            displayColors: false,
+            callbacks: {
+              title: function(context) {
+                if (context[0].dataset.label === 'User Messages') {
+                  const raw = context[0].raw;
+                  const userIdx = raw.user_msg_index || 0;
+                  const totalIdx = raw.total_msg_index || 0;
+                  const padding = '                    ';
+                  return '👤 User Message (#' + userIdx + ')' + padding + 'message #' + totalIdx;
+                }
+                return context[0].label;
+              },
+              label: function(context) {
+                if (context.dataset.label === 'User Messages') {
+                  const msg = context.raw.message || '';
+                  const cost = context.raw.cost || 0;
+                  const wrapped = wrapText(msg, 60);
+                  wrapped.push('', 'Cost: ' + cost.toLocaleString() + ' tokens');
+                  return wrapped;
+                } else if (context.dataset.label === 'Context Window Tokens') {
+                  const value = context.parsed.y;
+                  const percent = ((value / MODEL_CONTEXT_WINDOW) * 100).toFixed(2);
+                  return context.dataset.label + ': ' + value.toLocaleString() + ' (' + percent + '%)';
+                } else {
+                  return context.dataset.label + ': ' + context.parsed.y.toLocaleString();
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    const ctxCumulative = document.getElementById('cumulativeChart').getContext('2d');
+    const cumulativeChart = new Chart(ctxCumulative, {
+      type: 'line',
+      data: {
+        datasets: [
+          {
+            label: 'Cumulative Total Tokens',
+            data: MESSAGE_BASED_X ? CUMULATIVE_MSG_DATA : CUMULATIVE_TIME_DATA,
+            parsing: false,
+            borderColor: '#8b5cf6',
+            backgroundColor: 'rgba(139,92,246,0.15)',
+            tension: 0.3,
+            pointRadius: 0,
+            borderWidth: 2,
+            fill: true,
+            order: 2
+          },
+          {
+            label: 'User Messages',
+            data: USER_MESSAGES_CUMULATIVE,
+            parsing: false,
+            type: 'scatter',
+            backgroundColor: '#fbbf24',
+            borderColor: '#f59e0b',
+            borderWidth: 2,
+            pointRadius: 8,
+            pointHoverRadius: 10,
+            pointStyle: 'star',
+            order: 1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        onClick: (event, elements) => {
+          if (elements.length > 0 && elements[0].datasetIndex === 1) {
+            const dataPoint = elements[0];
+            const data = USER_MESSAGES_CUMULATIVE[dataPoint.index];
+            const userMsgIdx = data.user_msg_index;
+            const card = document.querySelector('.message-card[data-index="' + userMsgIdx + '"]');
+            if (card) {
+              card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              setTimeout(() => highlightMessage(card), 300);
+            }
+          }
+        },
+        scales: {
+          x: getXAxisConfig(MESSAGE_BASED_X),
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: 'Total Tokens', color: '#9ca3af', font: { size: 14 } },
+            ticks: { color: '#9ca3af', callback: function(value) { return value.toLocaleString(); } },
+            grid: { color: 'rgba(156,163,175,0.1)' }
+          }
+        },
+        plugins: {
+          legend: { position: 'top', labels: { color: '#e5e7eb', padding: 10, font: { size: 11 } } },
+          tooltip: {
+            backgroundColor: 'rgba(20,24,45,0.95)',
+            titleColor: '#e5e7eb',
+            bodyColor: '#e5e7eb',
+            borderColor: '#8b5cf6',
+            borderWidth: 1,
+            padding: 12,
+            displayColors: false,
+            callbacks: {
+              title: function(context) {
+                if (context[0].dataset.label === 'User Messages') {
+                  const raw = context[0].raw;
+                  const userIdx = raw.user_msg_index || 0;
+                  const totalIdx = raw.total_msg_index || 0;
+                  const padding = '                    ';
+                  return '👤 User Message (#' + userIdx + ')' + padding + 'message #' + totalIdx;
+                }
+                return context[0].label;
+              },
+              label: function(context) {
+                if (context.dataset.label === 'User Messages') {
+                  const msg = context.raw.message || '';
+                  const cost = context.raw.cost || 0;
+                  const wrapped = wrapText(msg, 60);
+                  wrapped.push('', 'Cost: ' + cost.toLocaleString() + ' tokens');
+                  return wrapped;
+                } else if (context.dataset.label === 'Cumulative Total Tokens') {
+                  return context.dataset.label + ': ' + context.parsed.y.toLocaleString();
+                } else {
+                  return context.dataset.label + ': ' + context.parsed.y.toLocaleString();
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    function toggleXAxis() {
+      // Check if vertical line exists before toggling
+      const contextLineIndex = contextChart.data.datasets.findIndex(d => d.label === 'Selected Message');
+      const cumulativeLineIndex = cumulativeChart.data.datasets.findIndex(d => d.label === 'Selected Message');
+
+      let savedLineData = null;
+      if (contextLineIndex >= 0) {
+        const lineDataset = contextChart.data.datasets[contextLineIndex];
+        savedLineData = {
+          tsMs: lineDataset.tsMs,
+          msgIndex: lineDataset.msgIndex
+        };
+        // Remove lines from both charts
+        contextChart.data.datasets.splice(contextLineIndex, 1);
+        cumulativeChart.data.datasets.splice(cumulativeLineIndex, 1);
+      }
+
+      // Toggle mode
+      MESSAGE_BASED_X = !MESSAGE_BASED_X;
+      const toggleSwitch = document.getElementById('toggleSwitch');
+      const toggleIcon = document.getElementById('toggleIcon');
+
+      if (MESSAGE_BASED_X) {
+        toggleSwitch.classList.add('active');
+        toggleIcon.textContent = '✓';
+      } else {
+        toggleSwitch.classList.remove('active');
+        toggleIcon.textContent = '✕';
+      }
+
+      // Update context chart
+      const contextData = MESSAGE_BASED_X ? CONTEXT_MSG_DATA : CONTEXT_TIME_DATA;
+      const userMsgContext = USER_MESSAGES_CONTEXT.map(pt => ({
+        ...pt,
+        x: MESSAGE_BASED_X ? pt.x_msg : pt.x_time
+      }));
+
+      contextChart.data.datasets[0].data = contextData;
+      contextChart.data.datasets[1].data = userMsgContext;
+      contextChart.data.datasets[2].data = [
+        { x: contextData[0].x, y: MODEL_CONTEXT_WINDOW },
+        { x: contextData[contextData.length - 1].x, y: MODEL_CONTEXT_WINDOW }
+      ];
+      contextChart.options.scales.x = getXAxisConfig(MESSAGE_BASED_X);
+      contextChart.update('none');
+
+      // Update cumulative chart
+      const cumulativeData = MESSAGE_BASED_X ? CUMULATIVE_MSG_DATA : CUMULATIVE_TIME_DATA;
+      const userMsgCumulative = USER_MESSAGES_CUMULATIVE.map(pt => ({
+        ...pt,
+        x: MESSAGE_BASED_X ? pt.x_msg : pt.x_time
+      }));
+
+      cumulativeChart.data.datasets[0].data = cumulativeData;
+      cumulativeChart.data.datasets[1].data = userMsgCumulative;
+      cumulativeChart.options.scales.x = getXAxisConfig(MESSAGE_BASED_X);
+      cumulativeChart.update('none');
+
+      // Redraw vertical line if it existed
+      if (savedLineData) {
+        const xPos = MESSAGE_BASED_X ? savedLineData.msgIndex : savedLineData.tsMs;
+        const contextYMax = Math.max(...CONTEXT_MSG_DATA.map(d => d.y), ...CONTEXT_TIME_DATA.map(d => d.y), MODEL_CONTEXT_WINDOW);
+        const cumulativeYMax = Math.max(...CUMULATIVE_MSG_DATA.map(d => d.y), ...CUMULATIVE_TIME_DATA.map(d => d.y));
+
+        contextChart.data.datasets.push({
+          label: 'Selected Message',
+          data: [{ x: xPos, y: 0 }, { x: xPos, y: contextYMax }],
+          type: 'line',
+          borderColor: '#fbbf24',
+          borderWidth: 2,
+          borderDash: [8, 4],
+          pointRadius: 0,
+          fill: false,
+          order: 0,
+          tsMs: savedLineData.tsMs,
+          msgIndex: savedLineData.msgIndex
+        });
+
+        cumulativeChart.data.datasets.push({
+          label: 'Selected Message',
+          data: [{ x: xPos, y: 0 }, { x: xPos, y: cumulativeYMax }],
+          type: 'line',
+          borderColor: '#fbbf24',
+          borderWidth: 2,
+          borderDash: [8, 4],
+          pointRadius: 0,
+          fill: false,
+          order: 0,
+          tsMs: savedLineData.tsMs,
+          msgIndex: savedLineData.msgIndex
+        });
+
+        contextChart.update('none');
+        cumulativeChart.update('none');
+      }
+    }
+
+    function highlightMessage(cardElement) {
+      // Remove selected class from all cards
+      document.querySelectorAll('.message-card').forEach(card => {
+        card.classList.remove('selected');
+      });
+
+      // Add selected class to clicked card
+      cardElement.classList.add('selected');
+
+      const tsMs = parseInt(cardElement.dataset.tsMs);
+      const msgIndex = parseInt(cardElement.dataset.msgIndex);
+
+      // Get cost, duration, and date from card data
+      const userMsgNum = parseInt(cardElement.dataset.index);
+      const costElement = cardElement.querySelector('.cost');
+      const costText = costElement ? costElement.textContent.replace('Cost: ', '').trim() : '0';
+      const dateFull = cardElement.dataset.dateFull || '';
+
+      // Extract duration from card header (without date)
+      const msgNumberElement = cardElement.querySelector('.message-number');
+      const fullText = msgNumberElement ? msgNumberElement.textContent : '';
+      const durationMatch = fullText.match(/\(([^)]+)\)/);
+      let duration = durationMatch ? durationMatch[1] : '0s';
+      // Remove date part from duration (e.g., "4m 22s Oct 04" -> "4m 22s")
+      duration = duration.split(' ').slice(0, 2).join(' ');
+
+      // Update chart titles with cost, duration, and date
+      const contextTitle = document.getElementById('contextChartTitle');
+      const cumulativeTitle = document.getElementById('cumulativeChartTitle');
+      const costSuffix = '<span class="cost-suffix">• User Message #' + userMsgNum + ' Cost: ' + costText + ' tokens (' + duration + ' ' + dateFull + ')</span>';
+
+      contextTitle.innerHTML = 'Context Window Over Time ' + costSuffix;
+      cumulativeTitle.innerHTML = 'Cumulative Total Tokens ' + costSuffix;
+
+      // Determine x position based on current mode
+      const xPos = MESSAGE_BASED_X ? msgIndex : tsMs;
+
+      // Find y-axis ranges for both charts
+      const contextYMax = Math.max(...CONTEXT_MSG_DATA.map(d => d.y), ...CONTEXT_TIME_DATA.map(d => d.y), MODEL_CONTEXT_WINDOW);
+      const cumulativeYMax = Math.max(...CUMULATIVE_MSG_DATA.map(d => d.y), ...CUMULATIVE_TIME_DATA.map(d => d.y));
+
+      // Update or add vertical line dataset to context chart
+      const contextLineIndex = contextChart.data.datasets.findIndex(d => d.label === 'Selected Message');
+      const contextLineData = [
+        { x: xPos, y: 0 },
+        { x: xPos, y: contextYMax }
+      ];
+
+      if (contextLineIndex >= 0) {
+        contextChart.data.datasets[contextLineIndex].data = contextLineData;
+        contextChart.data.datasets[contextLineIndex].tsMs = tsMs;
+        contextChart.data.datasets[contextLineIndex].msgIndex = msgIndex;
+      } else {
+        const newDataset = {
+          label: 'Selected Message',
+          data: contextLineData,
+          type: 'line',
+          borderColor: '#fbbf24',
+          borderWidth: 2,
+          borderDash: [8, 4],
+          pointRadius: 0,
+          fill: false,
+          order: 0,
+          tsMs: tsMs,
+          msgIndex: msgIndex
+        };
+        contextChart.data.datasets.push(newDataset);
+      }
+
+      // Update or add vertical line dataset to cumulative chart
+      const cumulativeLineIndex = cumulativeChart.data.datasets.findIndex(d => d.label === 'Selected Message');
+      const cumulativeLineData = [
+        { x: xPos, y: 0 },
+        { x: xPos, y: cumulativeYMax }
+      ];
+
+      if (cumulativeLineIndex >= 0) {
+        cumulativeChart.data.datasets[cumulativeLineIndex].data = cumulativeLineData;
+        cumulativeChart.data.datasets[cumulativeLineIndex].tsMs = tsMs;
+        cumulativeChart.data.datasets[cumulativeLineIndex].msgIndex = msgIndex;
+      } else {
+        const newDataset = {
+          label: 'Selected Message',
+          data: cumulativeLineData,
+          type: 'line',
+          borderColor: '#fbbf24',
+          borderWidth: 2,
+          borderDash: [8, 4],
+          pointRadius: 0,
+          fill: false,
+          order: 0,
+          tsMs: tsMs,
+          msgIndex: msgIndex
+        };
+        cumulativeChart.data.datasets.push(newDataset);
+      }
+
+      contextChart.update();
+      cumulativeChart.update();
+    }
+  </script>
+</body>
+</html>
