@@ -394,16 +394,21 @@ def generate_html(token_data: list, user_messages: list, output_path: Path,
 
         if i < len(user_messages_with_context) - 1:
             next_msg_ts = user_messages_with_context[i + 1]['ts_ms']
+            # Find the last token event BEFORE the next user message
             context_end = context_start
             time_end = time_start
-            for tok in reversed(token_data):
-                if tok['ts_ms'] < next_msg_ts:
+            for tok in token_data:
+                if tok['ts_ms'] > time_start and tok['ts_ms'] < next_msg_ts:
                     context_end = tok['context_tokens']
                     time_end = tok['ts_ms']
-                    break
         else:
-            context_end = token_data[-1]['context_tokens'] if token_data else 0
-            time_end = token_data[-1]['ts_ms'] if token_data else time_start
+            # Last user message - find the last token event after this message
+            context_end = context_start
+            time_end = time_start
+            for tok in token_data:
+                if tok['ts_ms'] > time_start:
+                    context_end = tok['context_tokens']
+                    time_end = tok['ts_ms']
 
         cost = max(0, context_end - context_start)
         duration_seconds = (time_end - time_start) / 1000.0
