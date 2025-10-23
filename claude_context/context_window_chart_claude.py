@@ -13,13 +13,14 @@ import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Optional, Tuple, List
 
 # Claude sessions are stored in ~/.claude/projects/
 CLAUDE_ROOT = Path.home() / '.claude' / 'projects'
 UUID_PATTERN = re.compile(r'([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})', re.IGNORECASE)
 
 
-def extract_uuid_from_name(name: str) -> str | None:
+def extract_uuid_from_name(name: str) -> Optional[str]:
     """Pull a UUID out of a session filename."""
     match = UUID_PATTERN.search(name)
     return match.group(1) if match else None
@@ -43,7 +44,7 @@ def format_age(delta: timedelta) -> str:
     return f"{days}d {hours}h"
 
 
-def extract_session_data(session_file: Path, min_message_length: int = 0) -> tuple:
+def extract_session_data(session_file: Path, min_message_length: int = 0) -> Tuple[List, List, int]:
     """Extract token usage and user messages from Claude session JSONL."""
     token_data = []
     user_messages = []
@@ -114,17 +115,17 @@ def extract_session_data(session_file: Path, min_message_length: int = 0) -> tup
                         cache_creation = usage.get('cache_creation_input_tokens', 0)
                         cache_read = usage.get('cache_read_input_tokens', 0)
 
-                        # Total input includes regular + cache creation
-                        total_input = input_tokens + cache_creation
-                        total_tokens = total_input + output_tokens
+                        # Context window is the total input for THIS request (including all cache layers)
+                        # This represents the actual context size Claude processed for this message
+                        context_tokens = input_tokens + cache_creation + cache_read
 
-                        # Update cumulative totals
-                        cumulative_input += total_input
+                        # Total tokens for this turn (input + output)
+                        turn_total = context_tokens + output_tokens
+
+                        # Update cumulative totals (total tokens consumed across all messages)
+                        cumulative_input += context_tokens
                         cumulative_output += output_tokens
-                        cumulative_total += total_tokens
-
-                        # Context window is the input tokens for this request
-                        context_tokens = total_input
+                        cumulative_total += turn_total
 
                         # Parse timestamp
                         ts_dt = datetime.fromisoformat(ts.rstrip('Z'))
@@ -221,7 +222,7 @@ def format_duration(seconds: float) -> str:
     return f"({hours}h {mins}m)"
 
 
-def find_session_files() -> list[Path]:
+def find_session_files() -> List[Path]:
     """Find all Claude session files."""
     if not CLAUDE_ROOT.exists():
         print(f"Error: Claude projects directory not found: {CLAUDE_ROOT}")
@@ -270,7 +271,7 @@ def list_recent_sessions(hours: float = 24) -> None:
         )
 
 
-def generate_html(token_data: list, user_messages: list, output_path: Path,
+def generate_html(token_data: List, user_messages: List, output_path: Path,
                  session_file: Path, total_msg_count: int, message_based_x: bool = True) -> None:
     """Generate HTML chart with Chart.js showing tokens and user messages."""
 
@@ -288,15 +289,18 @@ def generate_html(token_data: list, user_messages: list, output_path: Path,
                 break
 
         if closest_token:
-            x_val = msg.get('total_msg_index', 0) if message_based_x else msg['ts_ms']
+            # Use token's x position so stars align with line chart
+            x_val_time = closest_token['ts_ms']
+            x_val_msg = closest_token['message_index']
+            x_val = x_val_msg if message_based_x else x_val_time
             user_scatter_context.append({
                 'x': x_val,
                 'y': closest_token['context_tokens'],
                 'message': msg['message'],
                 'user_msg_index': msg.get('user_msg_index', 0),
                 'total_msg_index': msg.get('total_msg_index', 0),
-                'x_time': msg['ts_ms'],
-                'x_msg': msg.get('total_msg_index', 0)
+                'x_time': x_val_time,
+                'x_msg': x_val_msg
             })
             user_scatter_cumulative.append({
                 'x': x_val,
@@ -304,8 +308,8 @@ def generate_html(token_data: list, user_messages: list, output_path: Path,
                 'message': msg['message'],
                 'user_msg_index': msg.get('user_msg_index', 0),
                 'total_msg_index': msg.get('total_msg_index', 0),
-                'x_time': msg['ts_ms'],
-                'x_msg': msg.get('total_msg_index', 0)
+                'x_time': x_val_time,
+                'x_msg': x_val_msg
             })
             user_messages_with_context.append({
                 'ts': msg['ts'],
@@ -533,6 +537,10 @@ def generate_html(token_data: list, user_messages: list, output_path: Path,
       background: white;
       border-radius: 50%;
       transition: transform 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
     }}
 
     .toggle-switch.active .toggle-slider {{
@@ -717,10 +725,10 @@ def generate_html(token_data: list, user_messages: list, output_path: Path,
 <body>
   <div class="container">
     <div class="header">
-      <h1>Claude Code Context Window Usage</h1>
+      <h1>Context Window Usage Over Time</h1>
       <p>Project: {project_name} | Session: {session_id} | {date_range}</p>
       <div class="toggle-container">
-        <span class="toggle-label">Message-based x-axis</span>
+        <span class="toggle-label">Message based x-axis</span>
         <div id="toggleSwitch" class="toggle-switch {'active' if message_based_x else ''}" onclick="toggleXAxis()">
           <div class="toggle-slider">
             <span class="toggle-icon" id="toggleIcon">{'✓' if message_based_x else '✕'}</span>
@@ -865,7 +873,7 @@ def generate_html(token_data: list, user_messages: list, output_path: Path,
             parsing: false,
             borderColor: '#60a5fa',
             backgroundColor: 'rgba(96,165,250,0.15)',
-            tension: 0.3,
+            tension: 0,
             pointRadius: 0,
             borderWidth: 2,
             fill: true,
@@ -978,7 +986,7 @@ def generate_html(token_data: list, user_messages: list, output_path: Path,
             parsing: false,
             borderColor: '#8b5cf6',
             backgroundColor: 'rgba(139,92,246,0.15)',
-            tension: 0.3,
+            tension: 0,
             pointRadius: 0,
             borderWidth: 2,
             fill: true,
@@ -1169,11 +1177,14 @@ def generate_html(token_data: list, user_messages: list, output_path: Path,
       // Add selected class to clicked card
       cardElement.classList.add('selected');
 
-      const tsMs = parseInt(cardElement.dataset.tsMs);
-      const msgIndex = parseInt(cardElement.dataset.msgIndex);
+      const userMsgNum = parseInt(cardElement.dataset.index);
+
+      // Find the corresponding scatter point to get the correct x position (from token data)
+      const scatterPoint = USER_MESSAGES_CONTEXT.find(pt => pt.user_msg_index === userMsgNum);
+      const tsMs = scatterPoint ? scatterPoint.x_time : parseInt(cardElement.dataset.tsMs);
+      const msgIndex = scatterPoint ? scatterPoint.x_msg : parseInt(cardElement.dataset.msgIndex);
 
       // Get cost, duration, and date from card data
-      const userMsgNum = parseInt(cardElement.dataset.index);
       const costElement = cardElement.querySelector('.cost');
       const costText = costElement ? costElement.textContent.replace('Cost: ', '').trim() : '0';
       const dateFull = cardElement.dataset.dateFull || '';
